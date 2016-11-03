@@ -11,35 +11,16 @@
 |
 */
 
-phpinfo();die();
-
-$app->get('/ddapi/', function () use ($app) {
+$app->get('/', function () use ($app) {
     return $app->version();
 });
 
-$app->get('/ddapi', function () use ($app) {
-    return $app->version();
-});
+$app->get('/datadog', 'MetricController@datadog');
+$app->get('/info', 'MetricController@info');
 
-$app->get('/ddapi/intake', 'HomeController@intake');
-
-$app->group(['prefix' => 'ddapi'], function () use ($app) {
-	
-	$app->get('intake', 'HomeController@intake');
-/*
-	$app->any('/intake', 'HomeController@intake');
-	$app->any('/intake/metadata', 'HomeController@metadata');
-	$app->any('/intake/metrics', 'HomeController@metrics');
-	$app->any('/api/v1/series', 'HomeController@series');
-	$app->any('/api/v1/check_run', 'HomeController@check_run');
-	$app->any('/status', 'HomeController@status');*/
-
-});
-
-/*
-Route::any('/intake', 'HomeController@intake');
-Route::any('/intake/metadata', 'HomeController@metadata');
-Route::any('/intake/metrics', 'HomeController@metrics');
-Route::any('/api/v1/series', 'HomeController@series');
-Route::any('/api/v1/check_run', 'HomeController@check_run');
-Route::any('/status', 'HomeController@status');*/
+$app->get('/intake', 'MetricController@intake');
+$app->get('/intake/metadata', 'MetricController@metadata');
+$app->get('/intake/metrics', 'MetricController@metrics');
+$app->get('/api/v1/series', 'MetricController@series');
+$app->get('/api/v1/check_run', 'MetricController@check_run');
+$app->get('/status', 'MetricController@status');
