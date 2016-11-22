@@ -2,277 +2,183 @@
 /**
  * Created by PhpStorm.
  * User: admin
- * Date: 2016/11/3
- * Time: 13:29
+ * Date: 2016/11/7
+ * Time: 18:03
  */
 
 namespace App;
-use Illuminate\Support\Facades\DB;
+
+use Illuminate\Database\Eloquent\Model;
+use DB;
+use Cache;
 use Log;
+use App\Host;
+use Mockery\CountValidator\Exception;
 
-class Metric
+class Metric extends Model
 {
-    private $metrics_in;
-    private $host;
-    private $custom_id;
+    protected $table = "metric";
 
-    public function __construct($metrics_in,$host,$custom_id)
+    /**
+     * 检查metric 是否存在，如果存在返回 array(id)
+     * @param $integration
+     * @return array|bool
+     */
+    public static function findByIntegration($integration)
     {
-        $this->metrics_in = $metrics_in;
-        $this->host = $host;
-        $this->custom_id = $custom_id;
+        //return DB::table('metric')->where('integration',$integration)->first();
+        $metric = Cache::get('metric_cache');
+        if(empty($metric)){
+            Metric::updateMetricCache();
+            $metric = Cache::get('metric_cache');
+        }
+        if(in_array($integration,$metric)) {
+            return array_keys($metric, $integration);
+        }
+
+        return false;
     }
 
-    public function post2tsdb($arrPost) {
-        $headers = array('Content-Type: application/json','Content-Encoding: gzip',);
-        $gziped_xml_content = gzencode(json_encode($arrPost));
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_HEADER, 0);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_URL, 'http://172.29.225.222:4242/api/put?details'); //opentsdb服务器      //'http://172.29.231.123:4242/api/put');
-        curl_setopt($ch, CURLOPT_TIMEOUT,120);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $gziped_xml_content);
-        $res = curl_exec($ch);
-        curl_close($ch);
-        if($res == NULL) {
-            Log::info("response ===opentsdb error");
-        } else {
-            $res = json_decode($res);
-
-            if($res->failed > 0) {
-                Log::info("post ===".json_encode($arrPost));
-                Log::info("response ===".$res);
+    /**
+     * 查看metric_node 是否存在 如果存在返回 array(id)
+     * @param $metric_name
+     * @return array|bool
+     */
+    public static function findMetricNodeByMetric($metric_name)
+    {
+        //return DB::table('metric_node')->where('metric_name',$metric_name)->first();
+        $metric_node = Cache::get("metric_node_cache");
+        if(empty($tag_host)){
+            Metric::updateMetricNodeCache();
+            $metric_node = Cache::get("metric_node_cache");
+        }
+        foreach($metric_node as $item){
+            if($item->metric_name == $metric_name){
+                return $item;
             }
         }
+        /*if(in_array($metric_name,$metric_node)){
+            return array_keys($metric_node, $metric_name);
+        }*/
+        return false;
     }
 
-    public function checkarrPost($arrPost)
+    public static function findNodeHost($nodeid,$hostid)
     {
-        if(count($arrPost) > 30) {
-            $this->post2tsdb($arrPost);
-            $arrPost = array();
-        }
-
-        return $arrPost;
+        return DB::table('node_host')->where('hostid',$hostid)->where('nodeid',$nodeid)->first();
     }
 
-    public function getTags($metric)
+    /**
+     * 保存metric
+     * @param $data
+     */
+    public static function saveMetric($data)
     {
-        $sub = new \stdClass();
-        $sub->metric = $metric[0];
-        $sub->timestamp = $metric[1];
-        $sub->value = $metric[2];
-        $tag = $metric[3];
-        $sub->tags = new \stdClass();//$metric[3];
-        $sub->tags->host = $this->host;
-        $sub->tags->uid = $this->custom_id;//1;//$metrics_in->uuid;
-        if(isset($tag->device_name)) {
-            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
-        }
-        if(isset($tag->tags)) {
-            foreach($tag->tags as $value) {
-                $tmps = explode(":",$value);
+        DB::table('metric')->insert($data);
+        Metric::updateMetricCache();
+    }
 
-                if(count($tmps) == 2) {
-                    //	Log::info("value===".$tmps[1]);
-                    //	Log::info("valuevalue===".str_replace(array("{","}"), "_", $tmps[1]));
+    /**
+     * 保存metric_node
+     * @param $data
+     */
+    public static function saveMetricNode($data)
+    {
+        DB::table('metric_node')->insert($data);
+        Metric::updateMetricNodeCache();
+    }
 
-                    $sub->tags->$tmps[0] = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
-                } else {
-                    $sub->tags->$tmps[0] = "NULL";//$sub->tags->$tmps[0];
+    /**
+     * 更新 metric 缓存数据
+     */
+    public static function updateMetricCache()
+    {
+        $res = DB::table('metric')->pluck('integration', 'id');
+        Metric::saveCache("metric_cache",$res->toArray());
+    }
+
+    /**
+     * 更新 metric_node 缓存数据
+     */
+    public static function updateMetricNodeCache()
+    {
+        $res = DB::table('metric_node')->select('integrationid','metric_name','id')->get();
+        Metric::saveCache("metric_node_cache",$res);
+    }
+
+    /**
+     * 保存缓存
+     * @param $key
+     * @param $value
+     */
+    public static function saveCache($key,$value)
+    {
+        Cache::forever($key, $value);
+    }
+
+    public static function saveMetricHostNode($sub)
+    {
+        try{
+            DB::beginTransaction();
+
+            $metricname = $sub->metric;
+            $hostname = $sub->tags->host;
+            $host = Host::findHostByPname($hostname);
+
+            if(!$host) return;
+
+            //1,metric_node 是否存在
+            $res= Metric::findMetricNodeByMetric($metricname);
+            if($res){
+                //1.1存在
+                $nodeid = $res->id;
+                $metricid = $res->integrationid;
+            }else{
+                //1.2 不存在
+                $temp = explode(".",$metricname);
+                $integration = $temp[0];
+
+                //1.2.1保存 metric
+                $res = Metric::findByIntegration($integration);
+                if(!$res){
+                    $metricid = md5(uniqid());
+                    Metric::saveMetric(['id' => $metricid,'integration' => $integration]);
+                }else{
+                    $metricid = $res['0'];
                 }
+
+                //1.2.2保存 metric_node
+                $nodeid = md5(uniqid());
+                $data = [
+                    "id" => $nodeid,
+                    "integrationid" => $metricid,
+                    "subname" => isset($temp[1]) ? $temp[1] : "",
+                    "metric_name" => $metricname
+                ];
+                Metric::saveMetricNode($data);
+
+                Metric::updateMetricCache();
+                Metric::updateMetricNodeCache();
             }
-        }
-
-        return $sub;
-    }
-
-    public function getTagsByOS($arrPost)
-    {
-        $os = $this->metrics_in->os;
-        switch($os){
-            case "linux":
-                $arrPost = $this->getLinuxMetric($arrPost);
-                break;
-            case "mac":
-                $arrPost = $this->getMacMetric($arrPost);
-                break;
-        }
-
-        //内存指标
-        $arrPost = $this->getMemMetric($arrPost);
-        //cpu指标
-        $arrPost = $this->getCpuMetric($arrPost);
-
-        return $arrPost;
-    }
-
-    private function getLinuxMetric($arrPost)
-    {
-        //io指标
-        $arrPost = $this->getLinuxIOMetric($arrPost);
-
-        return $arrPost;
-    }
-
-    private function getMacMetric($arrPost)
-    {
-        //io指标
-        $arrPost = $this->getMacIOMetric($arrPost);
-
-        return $arrPost;
-    }
-
-    //metric 数据
-    private function createMetric($arr,$data,$arrPost,$device="")
-    {
-        foreach($arr as $key => $item){
-            if(!empty($data->$item)){
-                $sub = new \stdClass();
-                $sub->metric = $key;
-                $sub->timestamp = time();
-                $sub->value = $data->$item;
-                $sub->tags = new \stdClass();//$metric[3];
-                $sub->tags->host = $this->host;
-                $sub->tags->uid = $this->custom_id;//1;//$metrics_in->uuid;
-                if($device) $sub->tags->device = $device;
-
-                array_push( $arrPost ,$sub);
+            //2,保存 node_host
+            $res = Metric::findNodeHost($nodeid,$host->id);
+            if(!$res){
+                $nodehostid = md5(uniqid());
+                DB::table('node_host')->insert(['id'=>$nodehostid,'nodeid'=>$nodeid,'hostid'=>$host->id]);
             }
 
-            $arrPost = $this->checkarrPost($arrPost);
+            //3,保存 metric_host
+            $data = [
+                'metricid' => $metricid,
+                'hostid' => $host->id,
+                'status' => 0
+            ];
+            MetricHost::saveMetricHost($data);
+
+            DB::commit();
+        }catch(Exception $e){
+            DB::rollBack();
         }
 
-        return $arrPost;
     }
-
-    //IO metric 数据
-    private function createIOMetric($arr,$arrPost)
-    {
-        $ioStats = $this->metrics_in->ioStats;
-        if(empty($ioStats)){
-            return $arrPost;
-        }
-
-        foreach($ioStats as $device => $data){
-            $arrPost = $this->createMetric($arr,$data,$arrPost,$device);
-        }
-
-        return $arrPost;
-    }
-
-    // 内存 metric linux mac 相同
-    private function getMemMetric($arrPost)
-    {
-        $arr = [
-            "system.mem.used" => "emPhysUsed",
-            "system.mem.pct_usable" => "memPhysPctUsable",
-            "system.mem.free" => "memPhysFree",
-            "system.mem.total" => "memPhysTotal",
-            "system.mem.usable" => "memPhysUsable",
-            "system.swap.used" => "memSwapUsed",
-            "system.mem.cached" => "memCached",
-            "system.swap.free" => "memSwapFree",
-            "system.swap.pct_free" => "memSwapPctFree",
-            "system.swap.total" => "memSwapTotal",
-            "system.mem.buffered" => "memBuffers",
-            "system.mem.shared" => "memShared",
-            "system.mem.slab" => "memSlab",
-            "system.mem.page_tables" => "memPageTables",
-            "system.swap.cached" => "memSwapCached"
-        ];
-
-        $arrPost = $this->createMetric($arr,$this->metrics_in,$arrPost);
-
-        return $arrPost;
-    }
-
-    private function getLinuxIOMetric($arrPost)
-    {
-        $arr = [
-            "system.io.wkb_s" => "wkB/s",
-            "system.io.w_s" => "w/s",
-            "system.io.rkb_s" => "rkB/s",
-            "system.io.r_s" => "r/s",
-            "system.io.avg_q_sz" => "avgrq-sz",
-            "system.io.await" => "await",
-            "system.io.util" => "%util",
-        ];
-
-        $arrPost = $this->createIOMetric($arr,$arrPost);
-
-        return $arrPost;
-    }
-
-    private function getMacIOMetric($arrPost)
-    {
-        $arr = [
-            "system.io.bytes_per_s" => "system.io.bytes_per_s"
-        ];
-
-        $arrPost = $this->createIOMetric($arr,$arrPost);
-
-        return $arrPost;
-    }
-
-    //cpu metric linux mac 相同
-    private function getCpuMetric($arrPost)
-    {
-        $arr = [
-            "system.cpu.user" => "cpuUser",
-            "system.cpu.idle" => "cpuIdle",
-            "system.cpu.system" => "cpuSystem",
-            "system.cpu.iowait" => "cpuWait",
-            "system.cpu.stolen" => "cpuStolen",
-            "system.cpu.guest" => "cpuGuest"
-        ];
-
-        $arrPost = $this->createMetric($arr,$this->metrics_in,$arrPost);
-
-        return $arrPost;
-    }
-
-    public function saveHost($data)
-    {
-        $sql =<<<EOD
-            insert into host (
-                id,
-                pname,
-                status,
-                ptype,
-                cpu,
-                iowait,
-                gohai,
-                load15,
-                createtime,
-                updatetime,
-                colletcionstamp,
-                processmetrics,
-                diskutilization,
-                disksize,
-                uuid,
-                is_delete
-            ) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-EOD;
-
-
-        DB::insert($sql, $data);
-
-    }
-
-    public function saveMetricHost($data)
-    {
-        $sql = 'insert into metric_host (id,metricid,hostid) value (?,?,?)';
-        DB::insert($sql, $data);
-    }
-
-    public function selectMetric()
-    {
-
-    }
-
 }
-
