@@ -1,5 +1,7 @@
 <?php
 
+ini_set('date.timezone','Asia/Shanghai');
+
 require_once __DIR__.'/../vendor/autoload.php';
 
 try {
@@ -83,6 +85,7 @@ $app->register(App\Providers\AppServiceProvider::class);
 // $app->register(App\Providers\EventServiceProvider::class);
 
 $app->register(Illuminate\Redis\RedisServiceProvider::class);
+$app->register(VladimirYuldashev\LaravelQueueRabbitMQ\LaravelQueueRabbitMQServiceProvider::class);
 
 /*
 |--------------------------------------------------------------------------

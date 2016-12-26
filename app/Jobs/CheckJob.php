@@ -28,16 +28,18 @@ class CheckJob extends Job
 
     private $service_checks;
     private $hostname;
+    private $uid;
 
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($service_checks,$hostname)
+    public function __construct($service_checks,$hostname,$uid)
     {
         $this->service_checks = $service_checks;
         $this->hostname = $hostname;
+        $this->uid = $uid;
     }
 
     /**
@@ -47,18 +49,19 @@ class CheckJob extends Job
      */
     public function handle()
     {
-        if ($this->attempts() > 2) {
+        if ($this->attempts() >= 1) {
             $this->release(); //队列任务执行超过两次就释放
         }
         try{
-            //DB::beginTransaction();
+            //Log::info("checkjob_start === " . time());
 
-            $host = Host::findHostByPname($this->hostname);
+            $host = Host::findHostByPname($this->hostname,$this->uid);
 
             if(!$host) return;
             //Log::info("service_checks === " . json_encode($this->service_checks));
             //3 保存metric_host service_check
             foreach($this->service_checks as $service_check){
+
                 $data = [];
                 $check = $service_check->check;
                 $tmps = explode(".",$check);
@@ -76,21 +79,16 @@ class CheckJob extends Job
 
                 $res = Metric::findByIntegration($integration);
                 if($res){
-                    $metricid = $res['0'];
-                    /*$data = [
-                        'metricid' => $metricid,
-                        'hostid' => $host->id,
-                        'status' => $service_check->status
-                    ];*/
-                    //MetricHost::saveMetricHost($data);
+                    $metricid = $res->id;
                     DB::table('metric_host')->where('metricid',$metricid)->where('hostid',$host->id)
-                        ->update(['status'=>$service_check->status]);
+                            ->update(['status'=>$service_check->status]);
                 }
-            }
 
-            //DB::commit();
+            }
+            //Log::info("checkjob_end === " . time());
+
         }catch(Exception $e){
-            //DB::rollBack();
+            Log::error($e->getMessage());
         }
 
         return;

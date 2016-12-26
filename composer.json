@@ -10,7 +10,9 @@
         "vlucas/phpdotenv": "~2.2",
         "guzzlehttp/guzzle": "^6.2",
         "predis/predis": "^1.1",
-        "illuminate/redis": "^5.3"
+        "illuminate/redis": "^5.3",
+        "vladimir-yuldashev/laravel-queue-rabbitmq": "^5.3",
+        "php-amqplib/php-amqplib": "^2.6"
     },
     "require-dev": {
         "fzaninotto/faker": "~1.4",

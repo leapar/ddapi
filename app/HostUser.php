@@ -20,7 +20,7 @@ class HostUser extends Model
     {
         $hostuser = HostUser::findByHostid($hostid,$userid);
         if(!$hostuser){
-            DB::table('host_user')->insert(['id'=>md5(uniqid()),'userid'=>$userid,'hostid'=>$hostid]);
+            DB::table('host_user')->insert(['id'=>md5(uniqid() . rand(1111,9999)),'userid'=>$userid,'hostid'=>$hostid]);
         }
     }
 
@@ -28,5 +28,10 @@ class HostUser extends Model
     {
         $host = DB::table('host_user')->where('userid',$userid)->where('hostid', $hostid)->first();
         return $host;
+    }
+
+    public static function findUserHostByUID($userid)
+    {
+        return DB::table('host_user')->where('userid',$userid)->select('hostid')->get();
     }
 }

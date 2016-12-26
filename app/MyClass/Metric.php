@@ -17,21 +17,27 @@ class Metric
     private $uid;
     private $tags;
 
+    private $psdbtags;
+
     public function __construct($metrics_in=null,$host=null,$uid=null)
     {
         $this->metrics_in = $metrics_in;
         $this->host = $host;
         $this->uid = $uid;
         $this->tags = array();
+        $this->psdbtags = array();
     }
 
     public function post2tsdb($arrPost) {
+        //die;
         $headers = array('Content-Type: application/json','Content-Encoding: gzip',);
         $gziped_xml_content = gzencode(json_encode($arrPost));
+        $tsdb_url = "http://172.29.231.70:4242";
+        //$tsdb_url = "http://172.29.228.16:4242";
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_URL, 'http://172.29.231.70:4242/api/put?details'); //opentsdb服务器      //'http://172.29.231.123:4242/api/put');
+        curl_setopt($ch, CURLOPT_URL, $tsdb_url.'/api/put?details'); //opentsdb服务器      //'http://172.29.231.123:4242/api/put');
         curl_setopt($ch, CURLOPT_TIMEOUT,120);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_POST, 1);
@@ -45,7 +51,7 @@ class Metric
             $res = json_decode($res);
             //Log::info("response ===".json_encode($res));
             if($res->failed > 0) {
-                Log::info("post ===".json_encode($arrPost));
+                //Log::info("post ===".json_encode($arrPost));
             }
         }
     }
@@ -74,9 +80,32 @@ class Metric
             $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
         }
 
-        $this->setTags($metric);
+        if(isset($tag->tags)) {
+            foreach($tag->tags as $value) {
+                $tmps = explode(":",$value);
 
+                if(count($tmps) == 2) {
+                    //	Log::info("value===".$tmps[1]);
+                    if($tmps[0] == "instance"){
+                        $sub->tags->instance = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
+                    }
+                }
+            }
+        }
+
+        $this->setTags($metric);
+        $this->setPSDB($sub);
         return $sub;
+    }
+
+    public function setPSDB($sub)
+    {
+        array_push($this->psdbtags,$sub);
+    }
+
+    public function getPSDBTags()
+    {
+        return $this->psdbtags;
     }
 
     private function setTags($metric)
@@ -272,19 +301,21 @@ class Metric
             if (isset($item->device_name)) {
                 $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u", "", $item->device_name);
             }
-            /*if(isset($item->tags)) {
+            if(isset($item->tags)) {
                 foreach($item->tags as $value) {
                     $tmps = explode(":",$value);
 
                     if(count($tmps) == 2) {
                         //	Log::info("value===".$tmps[1]);
-                        if(empty($sub->tags->device) && $tmps[0] == "name"){
-                            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
+                        if($tmps[0] == "instance"){
+                            $sub->tags->instance = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
                         }
                     }
                 }
-            }*/
+            }
             array_push($arrPost, $sub);
+            $this->setPSDB($sub);
+
             $arrPost = $this->checkarrPost($arrPost);
             $this->setSeriseTag($item);
         }
@@ -318,9 +349,41 @@ class Metric
         array_push($this->tags,$sub);
     }
 
+    public function setHostTag()
+    {
+        $host_tags = 'host-tags';
+        $host_tag = $this->metrics_in->$host_tags;
+        if(!isset($host_tag->system)) return;
+
+        foreach($host_tag->system as $val){
+            $res = explode(":",$val);
+            $key = $res[0];
+            $value = isset($res[1]) ? $res[1] : 'null';
+
+            $sub = new \stdClass();
+            $sub->$host_tags = 'host-tags';
+            $sub->tags = new \stdClass();//$metric[3];
+            $sub->tags->host = $this->host;
+            $sub->tags->uid = $this->uid;
+            $sub->tags->$host_tags = new \stdClass();
+            $sub->tags->$host_tags->$key = $value;
+
+            array_push($this->tags,$sub);
+        }
+    }
+
     public function getTags()
     {
         return $this->tags;
+    }
+
+    public function getAlarmData()
+    {
+        $data = [];
+        $data['User'] = ["host" => $this->host,'uid' => $this->uid];
+        if(!empty($this->getPSDBTags())) $data['Metrics'] = $this->getPSDBTags();
+
+        return json_encode($data);
     }
 
 }

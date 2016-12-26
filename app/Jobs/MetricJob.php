@@ -43,17 +43,19 @@ class MetricJob extends Job
      */
     public function handle()
     {
-        if ($this->attempts() > 2) {
+        if ($this->attempts() >= 1) {
             $this->release(); //队列任务执行超过两次就释放
         }
 
+        set_time_limit(0);
+
+        //Log::info("metricjob_start === " . time());
         if(empty($this->tags)) return;
         foreach($this->tags as $sub){
             //保存tag
             Metric::saveMetricHostNode($sub);
         }
-
-        return;
+        //Log::info("metricjob_end === " . time());
 
     }
 

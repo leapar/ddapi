@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\AlarmJob;
 use App\Jobs\CheckJob;
 use App\Jobs\HostJob;
 use App\Jobs\MetricJob;
 use App\Jobs\TagJob;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redis;
 use Log;
 use DB;
 use Cache;
@@ -14,6 +16,7 @@ use App\Tag;
 use GuzzleHttp\Pool;
 use GuzzleHttp\Client;
 use App\MyClass\Metric;
+use App\MyClass\MyRedisCache;
 use Mockery\CountValidator\Exception;
 
 class MetricController extends Controller
@@ -24,7 +27,9 @@ class MetricController extends Controller
 
     public function intake(Request $request)
     {
+        die();
         try{
+            //Log::info("intake_start === " .time());
             $data = file_get_contents('php://input');
             $data = zlib_decode($data);
             $metrics_in = \GuzzleHttp\json_decode($data);
@@ -71,17 +76,13 @@ class MetricController extends Controller
                 $arrPost = array();
             }
 
+            $my_metric->setHostTag();
             $tags = $my_metric->getTags();
 
             //2、保存 mysql host表,host_user
             $hostjob = (new HostJob($metrics_in,$custom_id,$cpuIdle,$disk_total,$disk_used))->onQueue("host");
             //$hostjob = new HostJob($metrics_in,$custom_id,$cpuIdle,$disk_total,$disk_used);
             $this->dispatch($hostjob);
-
-            //3，要存储主机跟metric关系表 service_checks
-            $checkjob = (new CheckJob($metrics_in->service_checks,$host))->onQueue("check");
-            //$checkjob = new CheckJob($metrics_in->service_checks,$host);
-            $this->dispatch($checkjob);
 
             //4,保存tags
             $tagjob = (new TagJob($tags))->onQueue("tag");
@@ -92,6 +93,12 @@ class MetricController extends Controller
             $metricjob = (new MetricJob($tags))->onQueue("metric");
             //$metricjob = new MetricJob($tags);
             $this->dispatch($metricjob);
+
+            //3，要存储主机跟metric关系表 service_checks
+            $checkjob = (new CheckJob($metrics_in->service_checks,$host,$custom_id))->onQueue("metric");
+            //$checkjob = new CheckJob($metrics_in->service_checks,$host);
+            $this->dispatch($checkjob);
+
         }catch(Exception $e){
             Log::error($e->getMessage());
         }
@@ -99,6 +106,7 @@ class MetricController extends Controller
 
     public function series(Request $request)
     {
+        die();
         try{
             $data = file_get_contents('php://input');
             $data = zlib_decode ($data);
@@ -115,13 +123,14 @@ class MetricController extends Controller
 
             //1,保存到opentsdb
             $arrPost = array();
-            $my_metric = new Metric($series,null,$custom_id);
+            $tmps = $series[0];
+            $host = $tmps->host;
+            $my_metric = new Metric($series,$host,$custom_id);
             $arrPost = $my_metric->serise($arrPost);
 
             $tags = $my_metric->getTags();
 
             if(count($arrPost) > 0) {
-                $my_metric = new Metric();
                 $my_metric->post2tsdb($arrPost);
                 $arrPost = array();
             }
@@ -142,6 +151,7 @@ class MetricController extends Controller
     }
     public function check_run(Request $request)
     {
+        die();
         try{
             $data = file_get_contents('php://input');
             //$data = zlib_decode ($data);
@@ -160,7 +170,7 @@ class MetricController extends Controller
             $tmps = $check_run[0];
             $hostname = $tmps->host_name;
             //Log::info("check_run====host_name===".$hostname);
-            $checkjob = (new CheckJob($check_run,$hostname))->onQueue("check");
+            $checkjob = (new CheckJob($check_run,$hostname,$custom_id))->onQueue("metric");
             //$checkjob = new CheckJob($check_run,$hostname);
             $this->dispatch($checkjob);
         }catch(Exception $e){
@@ -182,15 +192,14 @@ class MetricController extends Controller
 
     public function info()
     {
-        Cache::forget('metric_cache');
-        Cache::forget('metric_node_cache');
-
-        /*$res = DB::table('tag')->select("id",'key','value')->get();
-
-        foreach($res as $tag){
-            echo $tag->key . " => " . $tag->value . "; " . $tag->id . "<br>";
-        }*/
         //phpinfo();
-
+        exit();
+        Cache::forget('tag_cache');
+        Cache::forget('tag_host_cache');
+        Cache::forget('metric_host_cache');
+        Cache::forget('metric_host_cache');
+        Cache::forget('node_host_cache');
+        Cache::forget('metric_node_cache');
+        Cache::forget('metric_cache');
     }
 }
