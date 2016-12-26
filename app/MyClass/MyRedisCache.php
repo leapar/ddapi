@@ -44,50 +44,50 @@ class MyRedisCache
     {
         $users = DB::table('user')->select('id')->get();
         foreach($users as $user){
-            //$ret = new \stdClass();
+            //MULTI  开启redis事务
+            Redis::command('MULTI');
+
             $uid = 'user_host_tag_metric_metric_node_'.$user->id;
-            //$ret->{$uid} = new \stdClass();
+            Redis::command('DEL',[$uid]);
+
             $userhosts = HostUser::findUserHostByUID($user->id);
             foreach($userhosts as $userhost){
                 $ret = new \stdClass();
                 $hostid = $userhost->hostid;
-                //$ret->{$uid}->{$hostid} = new \stdClass();
                 $host = Host::findByHostid($userhost->hostid);
-                //$ret->{$uid}->{$hostid}->host = $host;
                 $ret->host = $host;
                 $tags = Tag::findTagHostByHostid($userhost->hostid);
-                //$ret->{$uid}->{$hostid}->tag = $tags;
                 $ret->tag = $tags;
                 $metrics = MetricModel::findMetricHostByHostid($userhost->hostid);
                 foreach($metrics as $metric){
                     $metricnodes = MetricModel::findMetricNodeByHostid($userhost->hostid,$metric->metricid);
                     $metric->metric_node = $metricnodes;
                 }
-                //$ret->{$uid}->{$hostid}->metric = $metrics;
                 $ret->metric = $metrics;
-                /*$metric_nodes = Metric::findMetricNodeByHostid($userhost->hostid);
-                $ret->{$uid}->{$hostid}->metric_node = $metric_nodes;*/
                 $value = \GuzzleHttp\json_encode($ret);
                 Redis::command('HSET',[$uid,$hostid,$value]);
             }
-            //MyRedisCache::setRedisCache($uid,$ret);
+
+            //EXEC 执行事务
+            Redis::command('EXEC');
         }
-        //MyRedisCache::setRedisCache('userdata',$ret);
     }
 
     public static function setNodeHostCache()
     {
         $users = DB::table('user')->select('id')->get();
         foreach($users as $user){
-            //$ret = new \stdClass();
+            //MULTI  开启redis事务
+            Redis::command('MULTI');
+
             $uid = 'user_node_metric_node_'.$user->id;
-            //$ret->{$uid} = new \stdClass();
+            Redis::command('DEL',[$uid]);
+
             $userhosts = HostUser::findUserHostByUID($user->id);
             $data = [];
             foreach($userhosts as $userhost){
                 $node_hosts = MetricModel::findNodeHostByHostid($userhost->hostid);
                 foreach($node_hosts as $metric_node){
-                    //$metricid = $metric_node->metricid;
                     $name = $metric_node->metric_name;
                     if(!isset($data[$name])) $data[$name] = [];
                     if(!in_array($userhost->hostid,$data[$name]))
@@ -96,9 +96,9 @@ class MyRedisCache
                     Redis::command('HSET',[$uid,$name,$value]);
                 }
             }
-            //$ret->{$uid} = $data;
-            //MyRedisCache::setRedisCache($uid,$ret);
 
+            //EXEC 执行事务
+            Redis::command('EXEC');
         }
 
 

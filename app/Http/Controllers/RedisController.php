@@ -16,7 +16,7 @@ class RedisController extends Controller
      */
     public function user()
     {
-        MyRedisCache::setUserCache();
+        //MyRedisCache::setUserCache();
         return Redis::hgetall('user_host_tag_metric_metric_node_088DBF7B54EFBA3CA599B3543C73EA1C');
     }
 
@@ -25,16 +25,8 @@ class RedisController extends Controller
      */
     public function nodeHost()
     {
-        MyRedisCache::setNodeHostCache();
+        //MyRedisCache::setNodeHostCache();
         return Redis::hgetall('user_node_metric_node_088DBF7B54EFBA3CA599B3543C73EA1C');
-    }
-
-    /**
-     * 获取tag
-     */
-    public function tagHost()
-    {
-
     }
 
 }

@@ -27,7 +27,6 @@ class MetricController extends Controller
 
     public function intake(Request $request)
     {
-        die();
         try{
             //Log::info("intake_start === " .time());
             $data = file_get_contents('php://input');
