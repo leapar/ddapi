@@ -33,7 +33,7 @@ class Metric
         $headers = array('Content-Type: application/json','Content-Encoding: gzip',);
         $gziped_xml_content = gzencode(json_encode($arrPost));
         $tsdb_url = "http://172.29.231.70:4242";
-        //$tsdb_url = "http://172.29.228.16:4242";
+        $tsdb_url = "http://172.29.225.114:4242";
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
