@@ -50,7 +50,7 @@ class CheckJob extends Job
     public function handle()
     {
         if ($this->attempts() >= 1) {
-            $this->release(); //队列任务执行超过两次就释放
+            $this->delete(); //队列任务执行超过两次就释放
         }
         try{
             //Log::info("checkjob_start === " . time());

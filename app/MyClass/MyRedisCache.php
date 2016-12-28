@@ -40,6 +40,9 @@ class MyRedisCache
         return \GuzzleHttp\json_decode($value);
     }
 
+    /**
+     * 设置用户 host tag metric metric_node 缓存
+     */
     public static function setUserCache()
     {
         $users = DB::table('user')->select('id')->get();
@@ -73,6 +76,9 @@ class MyRedisCache
         }
     }
 
+    /**
+     * 设置 用户node 缓存
+     */
     public static function setNodeHostCache()
     {
         $users = DB::table('user')->select('id')->get();
@@ -100,9 +106,11 @@ class MyRedisCache
             //EXEC 执行事务
             Redis::command('EXEC');
         }
-
-
     }
+
+
+
+
 
 
 }

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\AlarmJob;
 use App\Jobs\CheckJob;
 use App\Jobs\HostJob;
 use App\Jobs\MetricJob;
@@ -78,15 +77,19 @@ class MetricController extends Controller
             $my_metric->setHostTag();
             $tags = $my_metric->getTags();
 
+
+
             //2、保存 mysql host表,host_user
             $hostjob = (new HostJob($metrics_in,$custom_id,$cpuIdle,$disk_total,$disk_used))->onQueue("host");
             //$hostjob = new HostJob($metrics_in,$custom_id,$cpuIdle,$disk_total,$disk_used);
             $this->dispatch($hostjob);
 
+
             //4,保存tags
             $tagjob = (new TagJob($tags))->onQueue("tag");
             //$tagjob = new TagJob($tags);
             $this->dispatch($tagjob);
+
 
             //5,保存metric
             $metricjob = (new MetricJob($tags))->onQueue("metric");
@@ -105,7 +108,6 @@ class MetricController extends Controller
 
     public function series(Request $request)
     {
-        die();
         try{
             $data = file_get_contents('php://input');
             $data = zlib_decode ($data);
@@ -150,7 +152,6 @@ class MetricController extends Controller
     }
     public function check_run(Request $request)
     {
-        die();
         try{
             $data = file_get_contents('php://input');
             //$data = zlib_decode ($data);

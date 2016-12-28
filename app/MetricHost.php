@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Redis;
 class MetricHost extends Model
 {
     protected $table = "metric_host";
+    public $timestamps = false;
 
     public static function saveMetricHost($data)
     {

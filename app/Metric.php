@@ -149,18 +149,20 @@ class Metric extends Model
     public static function saveMetricHostNode($sub)
     {
         try{
+            log::info("metric_start ==> " . time());
             if(!isset($sub->metric)) return;
             $metricname = $sub->metric;
             $hostname = $sub->tags->host;
             $uid = $sub->tags->uid;
             $host = Host::findHostByPname($hostname,$uid);
-
+            log::info("find_host ==> " . time());
             if(!$host) return;
 
             DB::beginTransaction();
 
             //1,metric_node 是否存在
             $res1= Metric::findMetricNodeByMetric($metricname);
+            log::info("find_metric_node ==> " . time());
             if($res1){
                 //1.1存在
                 $nodeid = $res1->id;
@@ -172,9 +174,11 @@ class Metric extends Model
 
                 //1.2.1保存 metric
                 $res2 = Metric::findByIntegration($integration);
+                log::info("find_metric ==> " . time());
                 if(!$res2){
                     $metricid = md5(uniqid() . rand(1111,9999));
                     Metric::saveMetric(['id' => $metricid,'integration' => $integration]);
+                    log::info("save_metric ==> " . time());
                 }else{
                     $metricid = $res2->id;
                 }
@@ -188,16 +192,20 @@ class Metric extends Model
                     "metric_name" => $metricname
                 ];
                 Metric::saveMetricNode($data);
+                log::info("save_metric_node ==> " . time());
             }
             //2,保存 node_host
             $res3 = Metric::findNodeHost($nodeid,$host->id);
+            log::info("find_node_host ==> " . time());
             if(!$res3){
                 $nodehostid = md5(uniqid() . rand(1111,9999));
                 DB::table('node_host')->insert(['id'=>$nodehostid,'nodeid'=>$nodeid,'hostid'=>$host->id]);
+                log::info("save_node_host ==> " . time());
             }
 
             //3,保存 metric_host
             $res4 = MetricHost::findByMetricidHostId($host->id,$metricid);
+            log::info("find_metric_host ==> " . time());
             if(!$res4){
                 $data = [
                     'metricid' => $metricid,
@@ -206,6 +214,7 @@ class Metric extends Model
                     'id' => md5(uniqid() . rand(1111,9999))
                 ];
                 MetricHost::saveMetricHost($data);
+                log::info("save_metric_host ==> " . time());
             }
             DB::commit();
 
