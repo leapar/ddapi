@@ -110,7 +110,10 @@ class MetricController extends Controller
     {
         try{
             $data = file_get_contents('php://input');
-            $data = zlib_decode ($data);
+            if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
+                $data = zlib_decode ($data);
+                Log::info("Content-Encoding===".$request->header('Content-Encoding'));
+            }
             $series_in = \GuzzleHttp\json_decode($data);
             //$series_in = $data;
             //$custom_id = $request->header('X-Consumer-Custom-ID');
