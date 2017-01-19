@@ -58,11 +58,10 @@ class CheckJob extends Job
             $host = Host::findHostByPname($this->hostname,$this->uid);
 
             if(!$host) return;
-            //Log::info("service_checks === " . json_encode($this->service_checks));
             //3 保存metric_host service_check
             foreach($this->service_checks as $service_check){
-
                 $data = [];
+                $integration = '';
                 $check = $service_check->check;
                 $tmps = explode(".",$check);
                 if(count($tmps) == 3 && $tmps[2] == "check_status"){
@@ -75,7 +74,7 @@ class CheckJob extends Job
                     $integration = $tmps[0];
                 }
 
-                if(!isset($integration)) continue;
+                if(!$integration) continue;
 
                 $res = Metric::findByIntegration($integration);
                 if($res){
