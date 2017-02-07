@@ -17,23 +17,19 @@ class Metric
     private $uid;
     private $tags;
 
-    private $psdbtags;
-
     public function __construct($metrics_in=null,$host=null,$uid=null)
     {
         $this->metrics_in = $metrics_in;
         $this->host = $host;
         $this->uid = $uid;
         $this->tags = array();
-        $this->psdbtags = array();
     }
 
     public function post2tsdb($arrPost) {
-        //die;
         $headers = array('Content-Type: application/json','Content-Encoding: gzip',);
         $gziped_xml_content = gzencode(json_encode($arrPost));
         $tsdb_url = "http://172.29.231.70:4242";
-        $tsdb_url = "http://172.29.225.114:4242";
+        //$tsdb_url = "http://172.29.225.114:4242";
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_HEADER, 0);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
@@ -94,18 +90,7 @@ class Metric
         }
 
         $this->setTags($metric);
-        $this->setPSDB($sub);
         return $sub;
-    }
-
-    public function setPSDB($sub)
-    {
-        array_push($this->psdbtags,$sub);
-    }
-
-    public function getPSDBTags()
-    {
-        return $this->psdbtags;
     }
 
     private function setTags($metric)
@@ -314,7 +299,6 @@ class Metric
                 }
             }
             array_push($arrPost, $sub);
-            $this->setPSDB($sub);
 
             $arrPost = $this->checkarrPost($arrPost);
             $this->setSeriseTag($item);
@@ -375,15 +359,6 @@ class Metric
     public function getTags()
     {
         return $this->tags;
-    }
-
-    public function getAlarmData()
-    {
-        $data = [];
-        $data['User'] = ["host" => $this->host,'uid' => $this->uid];
-        if(!empty($this->getPSDBTags())) $data['Metrics'] = $this->getPSDBTags();
-
-        return json_encode($data);
     }
 
 }

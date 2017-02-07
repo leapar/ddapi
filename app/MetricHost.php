@@ -25,6 +25,30 @@ class MetricHost extends Model
         DB::table('metric_host')->insert($data);
     }
 
+    public static function findByHostid($hostid)
+    {
+        return DB::table('metric_host')->where('hostid',$hostid)->first();
+    }
+
+    public static function saveMetricHostJob($hostid,$service_checks,$check_run)
+    {
+        $data = [];
+        !is_null($service_checks) ? $data['service_checks'] = json_encode($service_checks) : '';
+        !is_null($check_run) ? $data['check_run'] = json_encode($check_run) : '';
+
+        $res = MetricHost::findByHostid($hostid);
+        if($res){
+            DB::table('metric_host')->where('hostid',$hostid)->update($data);
+        }else{
+            $data['hostid'] = $hostid;
+            DB::table('metric_host')->insert($data);
+        }
+
+        //$sql = "replace into metric_host(hostid,service_checks,check_run) values (?,?,?)";
+
+        //DB::insert($sql,[$hostid,$service_checks,$check_run]);
+    }
+
     public static function updateMetricHost($data,$id)
     {
         DB::table('metric_host')->where('id',$id)->update($data);

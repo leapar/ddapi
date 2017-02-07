@@ -20,6 +20,8 @@ class Tag extends Model
 {
     protected $table = "tag";
 
+    protected $fillable = ['id'];
+
     /**
      * 保存 tag tag_host
      * @param $sub
@@ -74,6 +76,46 @@ class Tag extends Model
         }catch(Exception $e){
             DB::rollBack();
         }
+    }
+
+    public static function saveTagV1($sub){
+        try{
+            $hostname = $sub->tags->host;
+            $uid = $sub->tags->uid;
+            $hostid = md5($uid.$hostname);
+
+            $host_tags = 'host-tags';
+            $type = isset($sub->$host_tags) && $sub->$host_tags == 'host-tags' ? 1 : 0;
+            if($type == 1){
+                $tags = (array)$sub->tags->$host_tags;
+            }else{
+                $tags = (array)$sub->tags;
+            }
+            //Log::info("tag_type ===>".$type);
+            foreach($tags as $key => $value){
+
+                $tagid = md5($key.$value);
+
+                $res = Tag::findById($tagid);
+                if(!$res){
+                    DB::insert('insert into tag (`id`,`key`,`value`,`type`,`createtime`) values (?,?,?,?,current_timestamp())',[$tagid,$key,$value,$type]);
+
+                    $is_tsdb_tag = 0;
+                    $stdtags = array('host','uid','device','instance');
+                    if(in_array($key,$stdtags)){
+                        $is_tsdb_tag = 1;
+                    }
+                    DB::insert('insert into tag_host (`hostid`,`tagid`,`is_tsdb_tag`,`createtime`,`updatetime`) values (?,?,?,sysdate(),sysdate())',[$hostid,$tagid,$is_tsdb_tag]);
+                }
+            }
+        }catch(Exception $e){
+            Log::info($e->getMessage());
+        }
+    }
+
+    public static function findById($id)
+    {
+        return DB::table('tag')->where("id",$id)->first();
     }
 
     /**

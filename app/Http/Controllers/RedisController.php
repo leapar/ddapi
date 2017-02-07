@@ -17,7 +17,8 @@ class RedisController extends Controller
     public function user()
     {
         //MyRedisCache::setUserCache();
-        return Redis::hgetall('user_host_tag_metric_metric_node_088DBF7B54EFBA3CA599B3543C73EA1C');
+        //Redis::command('DEL',['HOST_DATA_1']);
+        return Redis::hgetall('HOST_DATA_1');
     }
 
     /**
