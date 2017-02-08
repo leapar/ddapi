@@ -87,7 +87,7 @@ class HostJobV1 extends Job
                 "host_name" => $hostname,
                 "ptype" => $this->metrics_in->os,
                 "uuid" => $this->metrics_in->uuid,
-                "updatetime" => date("Y-m-d H:i:s")
+                "lastStartTime" => date("Y-m-d H:i:s")
             ];
 
             if(isset($this->metrics_in->gohai) && !empty($this->metrics_in->gohai)){
