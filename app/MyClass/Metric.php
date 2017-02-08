@@ -366,16 +366,12 @@ class Metric
     public function checktime($key)
     {
         if (Cache::has($key)) {
-            $time = Cache::get($key);
-            if($time > time() - 5*60){
-                Cache::put($key,time());
-                return false;
-            }
+            return false;
         }else{
-            Cache::put($key,time());
+            Cache::put($key,time(),5);
+            return true;
         }
 
-        return true;
     }
 
 }
