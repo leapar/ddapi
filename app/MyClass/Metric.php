@@ -8,6 +8,7 @@
 
 namespace App\MyClass;
 
+use Illuminate\Support\Facades\Cache;
 use Log;
 
 class Metric
@@ -359,6 +360,22 @@ class Metric
     public function getTags()
     {
         return $this->tags;
+    }
+
+
+    public function checktime($key)
+    {
+        if (Cache::has($key)) {
+            $time = Cache::get($key);
+            if($time > time() - 5*60){
+                Cache::put($key,time());
+                return false;
+            }
+        }else{
+            Cache::put($key,time());
+        }
+
+        return true;
     }
 
 }

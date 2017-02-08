@@ -83,6 +83,9 @@ class MetricController extends Controller
             $my_metric->setHostTag();
             $tags = $my_metric->getTags();
 
+            $res = $my_metric->checktime($hostid.'intake');
+            if(!$res) return;
+
 
             $hostjobV1 = (new HostJobV1($metrics_in,$uid,$cpuIdle,$disk_total,$disk_used))->onQueue("hostV1");
             $this->dispatch($hostjobV1);
@@ -150,6 +153,10 @@ class MetricController extends Controller
                 $arrPost = array();
             }
 
+            $hostid = md5($uid.$host);
+            $res = $my_metric->checktime($hostid.'series');
+            if(!$res) return;
+
             $tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
             $this->dispatch($tagjobV1);
 
@@ -186,6 +193,10 @@ class MetricController extends Controller
             $tmps = $check_run[0];
             $hostname = $tmps->host_name;
             $hostid = md5($uid.$hostname);
+
+            $my_metric = new Metric();
+            $res = $my_metric->checktime($hostid.'check_run');
+            if(!$res) return;
 
             $metricjobV1 = (new MetricJobV1($hostid,null,$check_run))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
