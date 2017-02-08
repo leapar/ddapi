@@ -61,6 +61,7 @@ class HostJobV1 extends Job
             //1 保存host
             $load15 = "system.load.15";
             $redis_data = [
+                "hostId" => $hostid,
                 "cpu" => 100 - $this->cpuIdle,
                 "iowait" => isset($this->metrics_in->cpuWait) ? $this->metrics_in->cpuWait : null,
                 //"gohai" => isset($this->metrics_in->gohai) ? json_encode($this->metrics_in->gohai) : null,
