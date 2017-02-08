@@ -367,7 +367,7 @@ class Metric
     {
         if (Cache::has($key)) {
             $time = Cache::get($key);
-            if($time > time() - 5*60){
+            if($time < time() - 5*60){
                 Cache::put($key,time());
                 return false;
             }
