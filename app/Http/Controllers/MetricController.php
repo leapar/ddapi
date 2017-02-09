@@ -34,16 +34,22 @@ class MetricController extends Controller
         try{
             //Log::info("intake_start === " .time());
             $data = file_get_contents('php://input');
-            $data = zlib_decode($data);
+            if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
+                $data = zlib_decode ($data);
+                //Log::info("Content-Encoding===".$request->header('Content-Encoding'));
+            }
+            //$data = zlib_decode($data);
             $metrics_in = \GuzzleHttp\json_decode($data);
 
             $host = $metrics_in->internalHostname;
             $metrics = $metrics_in->metrics;
 
-            Log::info("header===".$request->header('X-Consumer-Custom-ID'));
+            //Log::info("header===".$request->header('X-Consumer-Custom-ID'));
             //Log::info("header===".$request->header('X-Consumer-Username'));
             $uid = $request->header('X-Consumer-Custom-ID');
             //$uid = "1"; //test
+
+            if(!$uid) return;
 
             $hostid = md5($uid.$host);
 
@@ -134,6 +140,8 @@ class MetricController extends Controller
             $uid = $request->header('X-Consumer-Custom-ID');
             //$uid = "1"; //test
 
+            if(!$uid) return;
+
             //Log::info("series===".$data);
             //exit();
 
@@ -179,11 +187,16 @@ class MetricController extends Controller
         try{
             $data = file_get_contents('php://input');
             //$data = zlib_decode ($data);
+            if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
+                $data = zlib_decode ($data);
+                //Log::info("Content-Encoding===".$request->header('Content-Encoding'));
+            }
             $check_run = \GuzzleHttp\json_decode($data);
             //$check_run = $data;
 
             $uid = $request->header('X-Consumer-Custom-ID');
             //$uid = "1"; //test
+            if(!$uid) return;
 
             //Log::info("check_run===".$data);
             //exit();
