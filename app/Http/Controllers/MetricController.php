@@ -44,7 +44,7 @@ class MetricController extends Controller
             $host = $metrics_in->internalHostname;
             $metrics = $metrics_in->metrics;
 
-            //Log::info("header===".$request->header('X-Consumer-Custom-ID'));
+            Log::info("header===".$request->header('X-Consumer-Custom-ID'));
             //Log::info("header===".$request->header('X-Consumer-Username'));
             $uid = $request->header('X-Consumer-Custom-ID');
             //$uid = "1"; //test
