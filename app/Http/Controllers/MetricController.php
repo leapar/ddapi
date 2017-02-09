@@ -30,6 +30,7 @@ class MetricController extends Controller
     public function intake(Request $request)
     {
         //exit();
+        //echo "success";
         try{
             //Log::info("intake_start === " .time());
             $data = file_get_contents('php://input');
@@ -39,10 +40,10 @@ class MetricController extends Controller
             $host = $metrics_in->internalHostname;
             $metrics = $metrics_in->metrics;
 
-            //Log::info("header===".$request->header('X-Consumer-Custom-ID'));
+            Log::info("header===".$request->header('X-Consumer-Custom-ID'));
             //Log::info("header===".$request->header('X-Consumer-Username'));
-            //$uid = $request->header('X-Consumer-Custom-ID');
-            $uid = "1"; //test
+            $uid = $request->header('X-Consumer-Custom-ID');
+            //$uid = "1"; //test
 
             $hostid = md5($uid.$host);
 
@@ -130,8 +131,8 @@ class MetricController extends Controller
             }
             $series_in = \GuzzleHttp\json_decode($data);
             //$series_in = $data;
-            //$uid = $request->header('X-Consumer-Custom-ID');
-            $uid = "1"; //test
+            $uid = $request->header('X-Consumer-Custom-ID');
+            //$uid = "1"; //test
 
             //Log::info("series===".$data);
             //exit();
@@ -181,8 +182,8 @@ class MetricController extends Controller
             $check_run = \GuzzleHttp\json_decode($data);
             //$check_run = $data;
 
-            //$uid = $request->header('X-Consumer-Custom-ID');
-            $uid = "1"; //test
+            $uid = $request->header('X-Consumer-Custom-ID');
+            //$uid = "1"; //test
 
             //Log::info("check_run===".$data);
             //exit();
