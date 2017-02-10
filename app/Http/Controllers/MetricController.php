@@ -30,7 +30,7 @@ class MetricController extends Controller
     public function intake(Request $request)
     {
         //exit();
-        //echo "success";
+        echo "success";
         try{
             //Log::info("intake_start === " .time());
             $data = file_get_contents('php://input');
@@ -51,7 +51,7 @@ class MetricController extends Controller
 
             if(!$uid) return;
 
-            $hostid = md5($uid.$host);
+            $hostid = md5(md5($uid).md5($host));
 
             //("service_checks===".json_encode($metrics_in->service_checks));
             //exit();
@@ -162,7 +162,7 @@ class MetricController extends Controller
                 $arrPost = array();
             }
 
-            $hostid = md5($uid.$host);
+            $hostid = md5(md5($uid).md5($host));
             $res = $my_metric->checktime($hostid.'series');
             if(!$res) return;
 
@@ -206,7 +206,7 @@ class MetricController extends Controller
             //保存 mysql 保存metric_host todo
             $tmps = $check_run[0];
             $hostname = $tmps->host_name;
-            $hostid = md5($uid.$hostname);
+            $hostid = md5(md5($uid).md5($hostname));
 
             $my_metric = new Metric();
             $res = $my_metric->checktime($hostid.'check_run');
@@ -241,12 +241,5 @@ class MetricController extends Controller
         var_dump($res);
         //phpinfo();
         exit();
-        Cache::forget('tag_cache');
-        Cache::forget('tag_host_cache');
-        Cache::forget('metric_host_cache');
-        Cache::forget('metric_host_cache');
-        Cache::forget('node_host_cache');
-        Cache::forget('metric_node_cache');
-        Cache::forget('metric_cache');
     }
 }

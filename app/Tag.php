@@ -82,7 +82,7 @@ class Tag extends Model
         try{
             $hostname = $sub->tags->host;
             $uid = $sub->tags->uid;
-            $hostid = md5($uid.$hostname);
+            $hostid = md5(md5($uid).md5($hostname));
 
             $host_tags = 'host-tags';
             $type = isset($sub->$host_tags) && $sub->$host_tags == 'host-tags' ? 1 : 0;

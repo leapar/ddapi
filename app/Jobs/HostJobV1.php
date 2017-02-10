@@ -56,7 +56,7 @@ class HostJobV1 extends Job
         try{
 
             $hostname = $this->metrics_in->internalHostname;
-            $hostid = md5($this->uid.$hostname);
+            $hostid = md5(md5($this->uid).md5($hostname));
 
             //1 保存host
             $load15 = "system.load.15";
