@@ -91,9 +91,8 @@ class MetricController extends Controller
             $tags = $my_metric->getTags();
 
             $res = $my_metric->checktime($hostid.'intake');
-            if(!$res) return;
-
-
+            if(!(isset($metrics_in->gohai) && !empty($metrics_in->gohai)) && !$res) return;
+            
             $hostjobV1 = (new HostJobV1($metrics_in,$uid,$cpuIdle,$disk_total,$disk_used))->onQueue("hostV1");
             $this->dispatch($hostjobV1);
 
