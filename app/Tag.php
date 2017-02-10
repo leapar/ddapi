@@ -22,62 +22,6 @@ class Tag extends Model
 
     protected $fillable = ['id'];
 
-    /**
-     * 保存 tag tag_host
-     * @param $sub
-     */
-    public static function saveTag($sub)
-    {
-        try{
-            $hostname = $sub->tags->host;
-            $uid = $sub->tags->uid;
-
-            $host_tags = 'host-tags';
-            $type = isset($sub->$host_tags) && $sub->$host_tags == 'host-tags' ? 1 : 0;
-            if($type == 1){
-                $tags = (array)$sub->tags->$host_tags;
-            }else{
-                $tags = (array)$sub->tags;
-            }
-            //Log::info("tag_type ===>".$type);
-            foreach($tags as $key => $value){
-                DB::beginTransaction();
-
-                //2,tag 是否存在
-                $res = Tag::findByKeyValueHostid($key,$value);
-                if($res){
-                    //1,1存在
-                    $tagid = $res->id;
-                }else{
-                    //1,2不存在 添加tag
-                    $tagid = md5(uniqid().rand(1111,9999));
-                    DB::insert('insert into tag (`id`,`key`,`value`,`type`,`createtime`) values (?,?,?,?,current_timestamp())',[$tagid,$key,$value,$type]);
-                    Tag::updateTagCache();
-                }
-
-                //3,保存tag_host
-                $host = Host::findHostByPname($hostname,$uid);
-                if($host){
-                    $res2 = Tag::findTagHostByHostidTagid($host->id,$tagid);
-                    if(!$res2){
-                        $taghostid = md5(uniqid().rand(1111,9999));
-                        $is_tsdb_tag = 0;
-                        $stdtags = array('host','uid','device','instance');
-                        if(in_array($key,$stdtags)){
-                            $is_tsdb_tag = 1;
-                        }
-                        DB::insert('insert into tag_host (`id`,`hostid`,`tagid`,`is_tsdb_tag`,`createtime`,`updatetime`) values (?,?,?,?,sysdate(),sysdate())',[$taghostid,$host->id,$tagid,$is_tsdb_tag]);
-                        Tag::updateTagHostCache();
-                    }
-                }
-
-                DB::commit();
-            }
-        }catch(Exception $e){
-            DB::rollBack();
-        }
-    }
-
     public static function saveTagV1($sub){
         try{
             $hostname = $sub->tags->host;
@@ -96,10 +40,13 @@ class Tag extends Model
 
                 $tagid = md5($key.$value);
 
-                $res = Tag::findById($tagid);
+                $res = Tag::findByTagid($tagid);
                 if(!$res){
                     DB::insert('insert into tag (`id`,`key`,`value`,`type`,`createtime`) values (?,?,?,?,current_timestamp())',[$tagid,$key,$value,$type]);
-
+                }
+                //3,保存tag_host
+                $res2 = Tag::findTagHostByHostidTagid($hostid,$tagid);
+                if(!$res2){
                     $is_tsdb_tag = 0;
                     $stdtags = array('host','uid','device','instance');
                     if(in_array($key,$stdtags)){
@@ -107,6 +54,7 @@ class Tag extends Model
                     }
                     DB::insert('insert into tag_host (`hostid`,`tagid`,`is_tsdb_tag`,`createtime`,`updatetime`) values (?,?,?,sysdate(),sysdate())',[$hostid,$tagid,$is_tsdb_tag]);
                 }
+
             }
         }catch(Exception $e){
             Log::info($e->getMessage());
@@ -118,13 +66,18 @@ class Tag extends Model
         return DB::table('tag')->where("id",$id)->first();
     }
 
+    public static function findByHostidTagId($hostid,$tagid)
+    {
+        return DB::table('tag_host')->where('hostid', $hostid)->where('tagid',$tagid)->first();
+    }
+
     /**
      * 检查tag是否存在，存在则返回 tagid
      * @param $key
      * @param $val
      * @return bool
      */
-    public static function findByKeyValueHostid($key,$val)
+    public static function findByTagid($tagid)
     {
         //return DB::table('tag')->where('key',$key)->where('value',$val)->first();
         $tags = MyRedisCache::getRedisCache("tag_cache");
@@ -133,8 +86,8 @@ class Tag extends Model
             $tags = MyRedisCache::getRedisCache("tag_cache");
         }
         foreach($tags as $tag){
-            if($tag->key == $key && $tag->value == $val){
-                return $tag;
+            if($tag->id == $tagid){
+                return true;
             }
         }
         return false;
@@ -171,16 +124,7 @@ class Tag extends Model
      */
     public static function updateTagCache()
     {
-        $res = DB::table('tag')->select("id",'key','value')->get();
+        $res = DB::table('tag')->select("id")->get();
         MyRedisCache::setRedisCache("tag_cache",$res);
-    }
-
-    public static function findTagHostByHostid($hostid)
-    {
-        return DB::table('tag_host')
-            ->leftJoin('tag','tag_host.tagid','=','tag.id')
-            ->where('tag_host.hostid',$hostid)
-            ->select('tag.id as tagid','tag.key','tag.value','tag_host.is_tsdb_tag')
-            ->get();
     }
 }

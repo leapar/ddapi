@@ -29,3 +29,12 @@ $app->post('/status', 'MetricController@status');
 
 $app->get('get_user_data','RedisController@user');
 $app->get('get_node_host','RedisController@nodeHost');
+
+$app->get('metrics.json','ApiController@metricsJson');
+$app->get('show.json','ApiController@showJson');
+$app->get('dashboards.json','ApiController@dashboardsJson');
+$app->get('charts.json','ApiController@chartsJson');
+$app->get('tags.json','ApiController@tagsJson');
+$app->get('query.json','ApiController@queryJson');
+$app->get('add.json','ApiController@addJson');
+$app->get('update.json','ApiController@updateJson');
