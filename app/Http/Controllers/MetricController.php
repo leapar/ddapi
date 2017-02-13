@@ -96,8 +96,8 @@ class MetricController extends Controller
             $hostjobV1 = (new HostJobV1($metrics_in,$uid,$cpuIdle,$disk_total,$disk_used))->onQueue("hostV1");
             $this->dispatch($hostjobV1);
 
-            $tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
-            $this->dispatch($tagjobV1);
+            //$tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
+            //$this->dispatch($tagjobV1);
 
             $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
@@ -165,8 +165,8 @@ class MetricController extends Controller
             $res = $my_metric->checktime($hostid.'series');
             if(!$res) return;
 
-            $tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
-            $this->dispatch($tagjobV1);
+            //$tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
+            //$this->dispatch($tagjobV1);
 
             //2,save tag
             //$tagjob = (new TagJob($tags))->onQueue("tag");
