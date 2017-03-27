@@ -58,6 +58,9 @@ class HostJobV1 extends Job
             $hostname = $this->metrics_in->internalHostname;
             $hostid = md5(md5($this->uid).md5($hostname));
 
+            list($t1, $t2) = explode(' ', microtime());
+            $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+
             //1 保存host
             $load15 = "system.load.15";
             $redis_data = [
@@ -74,7 +77,7 @@ class HostJobV1 extends Job
                 "hostName" => $hostname,
                 "ptype" => $this->metrics_in->os,
                 "uuid" => $this->metrics_in->uuid,
-                "updatetime" => date("Y-m-d H:i:s")
+                "updatetime" => $msec
             ];
 
             //保存数据到redis
@@ -92,7 +95,7 @@ class HostJobV1 extends Job
             ];
 
             if(isset($this->metrics_in->gohai) && !empty($this->metrics_in->gohai)){
-                $data["gohai"] = $this->metrics_in->gohai;
+                $data["gohai"] = json_encode($this->metrics_in->gohai);
                 $host = Host::findByHostid($hostid);
                 if($host){
                     DB::table('host')->where('id',$hostid)->update($data);

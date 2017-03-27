@@ -11,6 +11,9 @@
 |
 */
 
+/*$app->options('htapmsys.com:800',function(){
+    echo '123';
+});*/
 
 $app->get('/', function () use ($app) {
     return $app->version();
@@ -30,11 +33,35 @@ $app->post('/status', 'MetricController@status');
 $app->get('get_user_data','RedisController@user');
 $app->get('get_node_host','RedisController@nodeHost');
 
-$app->get('metrics.json','ApiController@metricsJson');
-$app->get('show.json','ApiController@showJson');
-$app->get('dashboards.json','ApiController@dashboardsJson');
-$app->get('charts.json','ApiController@chartsJson');
-$app->get('tags.json','ApiController@tagsJson');
-$app->get('query.json','ApiController@queryJson');
-$app->get('add.json','ApiController@addJson');
-$app->get('update.json','ApiController@updateJson');
+
+$app->get('test','ApiController@test');
+
+$app->group(['prefix' => 'p1','namespace'=>'App\Http\Controllers'], function () use ($app) {
+    $app->get('metric_types/normal_mode_list','ApiController@normalModeList');
+    $app->get('dashboards.json','ApiController@dashboardsJson');
+    $app->get('dashboards/{dasbid}/show.json','ApiController@showJson');
+    $app->get('dashboards/{dasbid}/charts.json','ApiController@chartsJson');
+    $app->post('dashboards/{dasbid}/charts/add.json','ApiController@addJson');
+    $app->post('dashboards/{dasbid}/charts/{chartid}/update.json','ApiController@updateChart');
+    $app->post('dashboards/{dasbid}/charts/{chartid}/delete.json','ApiController@deleteChart');
+    $app->post('dashboards/{dasbid}/update.json','ApiController@updateDasb');
+    $app->post('dashboards/{dasbid}/clone.json','ApiController@cloneDasb');
+    $app->post('dashboards/{dasbid}/delete.json','ApiController@deleteDasb');
+
+    $app->post('dashboards/addMore.json','ApiController@addMore');
+    $app->post('dashboards/{dasbid}/charts/batchAdd.json','ApiController@batchAdd');
+    $app->post('metric_templates/add.json','ApiController@templateAdd');
+    $app->post('metric_templates/update.json','ApiController@templateUpdate');
+    $app->post('metric_templates/{id}/delete.json','ApiController@templateDel');
+    $app->get('metric_templates/list.json','ApiController@templateList');
+});
+
+$app->group(['prefix' => 'p1','namespace'=>'App\Http\Controllers'], function () use ($app) {
+    $app->get('metrics.json', 'ApiPlusController@metricsJson');
+    $app->get('tags.json', 'ApiPlusController@tagJson');
+});
+
+$app->group(['prefix' => 'p0','namespace'=>'App\Http\Controllers'], function () use ($app) {
+    $app->get('metrics.json','ApiController@metricsJson');
+    $app->get('tags.json','ApiController@tagJson');
+});

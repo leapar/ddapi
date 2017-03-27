@@ -17,6 +17,15 @@ use DB;
 
 class MyRedisCache
 {
+    private $redis_host = '127.0.0.1';
+    private $redis_port = '6379';
+
+    public function __construct($host,$port)
+    {
+        $this->redis_host = $host;
+        $this->redis_port = $port;
+    }
+
     /**
      * 设置redis 缓存
      * @param $key
@@ -108,9 +117,88 @@ class MyRedisCache
         }
     }
 
+    /**
+     * 获取metric 及 tags
+     * @param $uid
+     * @return array
+     */
+    public function metricCache($uid)
+    {
+        $redis = new \Redis();
+        $redis->connect($this->redis_host,$this->redis_port);
+        $metric_key = 'search:metrics:uid='.$uid;
+        $metrics = $redis->hKeys($metric_key);
+        sort($metrics);
+        $result = [];
+        $pipe = $redis->multi(\Redis::PIPELINE);
+        foreach($metrics as $key => $metric){
+            $tag_key = "search:mts:".$metric;
+            $pipe->hKeys($tag_key);
+        }
+        $replies = $pipe->exec();
+        $custom_tags = MyApi::getCustomTagsByHost($uid);
+        foreach($metrics as $key => $metric){
+            $temp = new \stdClass();
+            $temp->metric = $metric;
+            $tags = $replies[$key];
+            $tags_temp = [];
+            foreach($tags as $val){
+                $item = explode(",",$val);
+                foreach($item as $value){
+                    $arr = explode("=",$value);
+                    if($arr[0] != "uid"){
+                        array_push($tags_temp,$arr[0].':'.$arr[1]);
+                    }
+                    if($arr[0] === 'host' && !empty($arr[1])){
+                        $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
+                    }
+                }
+            }
+            $tags_temp = array_unique($tags_temp);
+            sort($tags_temp);
+            $temp->tags = $tags_temp;
 
+            array_push($result,$temp);
+        }
 
+        return $result;
+    }
 
+    public function tagsCache($uid)
+    {
+        $redis = new \Redis();
+        $redis->connect($this->redis_host,$this->redis_port);
+        $metric_key = 'search:metrics:uid='.$uid;
+        $metrics = $redis->hKeys($metric_key);
+        sort($metrics);
+        $pipe = $redis->multi(\Redis::PIPELINE);
+        foreach($metrics as $key => $metric){
+            $tag_key = "search:mts:".$metric;
+            $pipe->hKeys($tag_key);
+        }
+        $replies = $pipe->exec();
+        $custom_tags = MyApi::getCustomTagsByHost($uid);
+        $result = [];
+        foreach($metrics as $key => $metric){
+            $tags = $replies[$key];
+            $tags_temp = [];
+            foreach($tags as $val){
+                $item = explode(",",$val);
+                foreach($item as $value){
+                    $arr = explode("=",$value);
+                    if($arr[0] != "uid"){
+                        array_push($tags_temp,$arr[0].':'.$arr[1]);
+                    }
+                    if($arr[0] === 'host' && !empty($arr[1])){
+                        $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
+                    }
+                }
+            }
+            $result = array_merge($result,$tags_temp);
+        }
+        $result = array_unique($result);
+        sort($result);
 
-
+        return $result;
+    }
 }

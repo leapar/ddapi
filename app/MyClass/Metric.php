@@ -10,6 +10,8 @@ namespace App\MyClass;
 
 use Illuminate\Support\Facades\Cache;
 use Log;
+use Mockery\CountValidator\Exception;
+use Symfony\Component\Debug\Exception\FatalErrorException;
 
 class Metric
 {
@@ -17,6 +19,9 @@ class Metric
     private $host;
     private $uid;
     private $tags;
+
+    private $tsdb_url = 'http://172.29.225.121:4242'; //opentsdb服务器
+    //private $tsdb_url = 'http://172.29.231.177:4242'; //opentsdb服务器
 
     public function __construct($metrics_in=null,$host=null,$uid=null)
     {
@@ -29,27 +34,23 @@ class Metric
     public function post2tsdb($arrPost) {
         $headers = array('Content-Type: application/json','Content-Encoding: gzip',);
         $gziped_xml_content = gzencode(json_encode($arrPost));
-        $tsdb_url = "http://172.29.231.70:4242";
-        //$tsdb_url = "http://172.29.225.114:4242";
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_HEADER, 0);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_URL, $tsdb_url.'/api/put?details'); //opentsdb服务器      //'http://172.29.231.123:4242/api/put');
-        curl_setopt($ch, CURLOPT_TIMEOUT,120);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $gziped_xml_content);
-        $res = curl_exec($ch);
-        curl_close($ch);
-        if($res == NULL) {
-            Log::info("response ===opentsdb error");
-        } else {
-            $res = json_decode($res);
-            //Log::info("response ===".json_encode($res));
-            if($res->failed > 0) {
-                //Log::info("post ===".json_encode($arrPost));
-            }
+
+        try{
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_HEADER, 0);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            curl_setopt($ch, CURLOPT_URL, $this->tsdb_url.'/api/put');//?details
+            curl_setopt($ch, CURLOPT_TIMEOUT,120);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $gziped_xml_content);
+            $res = curl_exec($ch);
+            curl_close($ch);
+        }catch(Exception $e){
+            Log::info("opentsdb error == " . $e->getMessage());
+        }catch(FatalErrorException $e){
+            Log::info("opentsdb error == " . $e->getMessage());
         }
     }
 
@@ -59,7 +60,6 @@ class Metric
             $this->post2tsdb($arrPost);
             $arrPost = array();
         }
-
         return $arrPost;
     }
 
@@ -73,7 +73,7 @@ class Metric
         $sub->tags = new \stdClass();//$metric[3];
         $sub->tags->host = $this->host;
         $sub->tags->uid = $this->uid;//1;//$metrics_in->uuid;
-        if(isset($tag->device_name)) {
+        if(isset($tag->device_name) && !empty($tag->device_name)) {
             $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
         }
 
@@ -90,7 +90,7 @@ class Metric
             }
         }
 
-        $this->setTags($metric);
+        //$this->setTags($metric);
         return $sub;
     }
 
@@ -104,7 +104,7 @@ class Metric
         $sub->tags = new \stdClass();//$metric[3];
         $sub->tags->host = $this->host;
         $sub->tags->uid = $this->uid;//1;//$metrics_in->uuid;
-        if(isset($tag->device_name)) {
+        if(isset($tag->device_name) && !empty($tag->device_name)) {
             $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
         }
         if(isset($tag->tags)) {
@@ -119,7 +119,7 @@ class Metric
                 }
             }
         }
-        array_push($this->tags,$sub);
+        //array_push($this->tags,$sub);
     }
 
     public function getMetricByOS($arrPost)
@@ -158,10 +158,10 @@ class Metric
                 $sub->tags = new \stdClass();//$metric[3];
                 $sub->tags->host = $this->host;
                 $sub->tags->uid = $this->uid;//1;//$metrics_in->uuid;
-                if($device) $sub->tags->device = $device;
+                if(!empty($device)) $sub->tags->device = $device;
 
                 array_push( $arrPost ,$sub);
-                array_push($this->tags,$sub);
+                //array_push($this->tags,$sub);
             }
 
             $arrPost = $this->checkarrPost($arrPost);
@@ -284,7 +284,7 @@ class Metric
             $sub->tags = new \stdClass();//$metric[3];
             $sub->tags->host = $item->host;
             $sub->tags->uid = $this->uid;
-            if (isset($item->device_name)) {
+            if (isset($item->device_name) && !empty($item->device_name)) {
                 $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u", "", $item->device_name);
             }
             if(isset($item->tags)) {
@@ -302,7 +302,7 @@ class Metric
             array_push($arrPost, $sub);
 
             $arrPost = $this->checkarrPost($arrPost);
-            $this->setSeriseTag($item);
+            //$this->setSeriseTag($item);
         }
         return $arrPost;
     }
@@ -316,7 +316,7 @@ class Metric
         $sub->tags = new \stdClass();//$metric[3];
         $sub->tags->host = $item->host;
         $sub->tags->uid = $this->uid;
-        if(isset($item->device_name)) {
+        if(isset($item->device_name) && !empty($item->device_name)) {
             $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$item->device_name);
         }
         if(isset($item->tags)) {
@@ -331,7 +331,7 @@ class Metric
                 }
             }
         }
-        array_push($this->tags,$sub);
+        //array_push($this->tags,$sub);
     }
 
     public function setHostTag()
@@ -353,7 +353,7 @@ class Metric
             $sub->tags->$host_tags = new \stdClass();
             $sub->tags->$host_tags->$key = $value;
 
-            array_push($this->tags,$sub);
+            //array_push($this->tags,$sub);
         }
     }
 
@@ -362,13 +362,16 @@ class Metric
         return $this->tags;
     }
 
-
-    public function checktime($key)
+    public function checktime($key,$time=null)
     {
         if (Cache::has($key)) {
             return false;
         }else{
-            Cache::put($key,time(),5);
+            if(!is_null($time)){
+                Cache::put($key,time(),$time);
+            }else{
+                Cache::put($key,time(),5);
+            }
             return true;
         }
 

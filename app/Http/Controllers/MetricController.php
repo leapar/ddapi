@@ -18,6 +18,7 @@ use App\Tag;
 use GuzzleHttp\Pool;
 use GuzzleHttp\Client;
 use App\MyClass\Metric;
+use App\MyClass\MyApi;
 use App\MyClass\MyRedisCache;
 use Mockery\CountValidator\Exception;
 
@@ -30,31 +31,28 @@ class MetricController extends Controller
     public function intake(Request $request)
     {
         //exit();
-        echo "success";
+        //echo "success";
         try{
             //Log::info("intake_start === " .time());
             $data = file_get_contents('php://input');
             if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
                 $data = zlib_decode ($data);
-                //Log::info("Content-Encoding===".$request->header('Content-Encoding'));
             }
-            //$data = zlib_decode($data);
             $metrics_in = \GuzzleHttp\json_decode($data);
 
             $host = $metrics_in->internalHostname;
-            $metrics = $metrics_in->metrics;
+            $metrics = isset($metrics_in->metrics) ? $metrics_in->metrics : '';
 
-            Log::info("header===".$request->header('X-Consumer-Custom-ID'));
-            //Log::info("header===".$request->header('X-Consumer-Username'));
+            //Log::info("intake_uid ===> ".$request->header('X-Consumer-Custom-ID'));
+            /*if($host == 'wan-215'){
+                Log::info("intake_data ===> ".json_encode($data));
+            }*/
             $uid = $request->header('X-Consumer-Custom-ID');
             //$uid = "1"; //test
 
             if(!$uid) return;
 
             $hostid = md5(md5($uid).md5($host));
-
-            //("service_checks===".json_encode($metrics_in->service_checks));
-            //exit();
 
             $my_metric = new Metric($metrics_in,$host,$uid);
 
@@ -87,38 +85,52 @@ class MetricController extends Controller
                 $arrPost = array();
             }
 
-            $my_metric->setHostTag();
-            $tags = $my_metric->getTags();
+            //$my_metric->setHostTag();
+            //$tags = $my_metric->getTags();
+
+            if(isset($metrics_in->gohai) && !empty($metrics_in->gohai)){
+                MyApi::putHostTags($metrics_in,$host,$uid);
+
+                $hostjobV1 = (new HostJobV1($metrics_in,$uid,$cpuIdle,$disk_total,$disk_used))->onQueue("hostV1");
+                $this->dispatch($hostjobV1);
+            }
+
+            $res = $my_metric->checktime($hostid.'intake_redis',1);
+            list($t1, $t2) = explode(' ', microtime());
+            $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+            if($res){
+                //保存数据到redis
+                $load15 = "system.load.15";
+                $redis_data = [
+                    "hostId" => $hostid,
+                    "cpu" => 100 - $cpuIdle,
+                    "iowait" => isset($metrics_in->cpuWait) ? $metrics_in->cpuWait : null,
+                    "load15" => isset($metrics_in->$load15) ? $metrics_in->$load15 : null,
+                    "colletcionstamp" => $metrics_in->collection_timestamp,
+                    "diskutilization" => $disk_total == 0 ? 0 :$disk_used / $disk_total * 100,
+                    "disksize" => $disk_total,
+                    "hostName" => $host,
+                    "ptype" => $metrics_in->os,
+                    "uuid" => $metrics_in->uuid,
+                    "updatetime" => $msec
+                ];
+
+                $hsname = "HOST_DATA_".$uid;
+                Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
+                $host_process = "PROCESS_".$hostid;
+                $process = isset($metrics_in->processes) ? json_encode($metrics_in->processes->processes) : null;
+                Redis::command('HSET',[$hsname,$host_process,$process]);
+            }
+
 
             $res = $my_metric->checktime($hostid.'intake');
-            if(!(isset($metrics_in->gohai) && !empty($metrics_in->gohai)) && !$res) return;
-
-            $hostjobV1 = (new HostJobV1($metrics_in,$uid,$cpuIdle,$disk_total,$disk_used))->onQueue("hostV1");
-            $this->dispatch($hostjobV1);
-
-            //$tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
-            //$this->dispatch($tagjobV1);
+            if(!$res) return;
 
             $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
 
-            /*//2、保存 mysql host表,host_user
-            $hostjob = (new HostJob($metrics_in,$uid,$cpuIdle,$disk_total,$disk_used))->onQueue("host");
-            $this->dispatch($hostjob);
-
-
-            //4,保存tags
-            $tagjob = (new TagJob($tags))->onQueue("tag");
-            $this->dispatch($tagjob);
-
-
-            //5,保存metric
-            $metricjob = (new MetricJob($tags))->onQueue("metric");
-            $this->dispatch($metricjob);
-
-            //3，要存储主机跟metric关系表 service_checks
-            $checkjob = (new CheckJob($metrics_in->service_checks,$host,$uid))->onQueue("metric");
-            $this->dispatch($checkjob);*/
+            //$tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
+            //$this->dispatch($tagjobV1);
 
         }catch(Exception $e){
             Log::error($e->getMessage());
@@ -132,17 +144,12 @@ class MetricController extends Controller
             $data = file_get_contents('php://input');
             if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
                 $data = zlib_decode ($data);
-                //Log::info("Content-Encoding===".$request->header('Content-Encoding'));
             }
             $series_in = \GuzzleHttp\json_decode($data);
-            //$series_in = $data;
             $uid = $request->header('X-Consumer-Custom-ID');
-            //$uid = "1"; //test
 
+            //Log::info("series_uid ===> ".$request->header('X-Consumer-Custom-ID'));
             if(!$uid) return;
-
-            //Log::info("series===".$data);
-            //exit();
 
             $series = $series_in->series;
             if(!$series) return;
@@ -153,8 +160,10 @@ class MetricController extends Controller
             $host = $tmps->host;
             $my_metric = new Metric($series,$host,$uid);
             $arrPost = $my_metric->serise($arrPost);
-
-            $tags = $my_metric->getTags();
+            /*if($host == 'wan215'){
+                Log::info("series_data ===> ".json_encode($data));
+            }*/
+            //$tags = $my_metric->getTags();
 
             if(count($arrPost) > 0) {
                 $my_metric->post2tsdb($arrPost);
@@ -168,15 +177,9 @@ class MetricController extends Controller
             //$tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
             //$this->dispatch($tagjobV1);
 
-            //2,save tag
-            //$tagjob = (new TagJob($tags))->onQueue("tag");
-            //$this->dispatch($tagjob);
-
-            //3,保存metric
-            //$metricjob = (new MetricJob($tags))->onQueue("metric");
-            //$this->dispatch($metricjob);
-
         }catch(Exception $e){
+            Log::error($e->getMessage());
+        }catch(\InvalidArgumentException $e){
             Log::error($e->getMessage());
         }
     }
@@ -188,17 +191,12 @@ class MetricController extends Controller
             //$data = zlib_decode ($data);
             if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
                 $data = zlib_decode ($data);
-                //Log::info("Content-Encoding===".$request->header('Content-Encoding'));
             }
-            $check_run = \GuzzleHttp\json_decode($data);
-            //$check_run = $data;
 
+            $check_run = \GuzzleHttp\json_decode($data);
             $uid = $request->header('X-Consumer-Custom-ID');
             //$uid = "1"; //test
             if(!$uid) return;
-
-            //Log::info("check_run===".$data);
-            //exit();
 
             if(!$check_run) return;
 
@@ -206,7 +204,9 @@ class MetricController extends Controller
             $tmps = $check_run[0];
             $hostname = $tmps->host_name;
             $hostid = md5(md5($uid).md5($hostname));
-
+            /*if($hostname == 'wan215'){
+                Log::info("check_run ===> ".json_encode($data));
+            }*/
             $my_metric = new Metric();
             $res = $my_metric->checktime($hostid.'check_run');
             if(!$res) return;
@@ -214,9 +214,6 @@ class MetricController extends Controller
             $metricjobV1 = (new MetricJobV1($hostid,null,$check_run))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
 
-            //$checkjob = (new CheckJob($check_run,$hostname,$uid))->onQueue("metric");
-            //$checkjob = new CheckJob($check_run,$hostname);
-            //$this->dispatch($checkjob);
         }catch(Exception $e){
             Log::error($e->getMessage());
         }
@@ -236,9 +233,8 @@ class MetricController extends Controller
 
     public function info()
     {
-        $res = DB::table('tag')->lists('id');
-        var_dump($res);
-        //phpinfo();
-        exit();
+        $a = 1;
+        $a += 2+3+4;
+        echo $a;
     }
 }
