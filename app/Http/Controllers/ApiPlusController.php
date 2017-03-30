@@ -19,8 +19,8 @@ class ApiPlusController  extends Controller
 {
     public function metricsJson(Request $request)
     {
-        //$uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 1;
+        $uid = $request->header('X-Consumer-Custom-ID');
+        //$uid = 1;
         if(!$uid) return;
         $ret = new \stdClass();
         $ret->code = 0;
@@ -28,9 +28,7 @@ class ApiPlusController  extends Controller
         $ret->result = [];
 
         try{
-            $host = "172.29.225.121";
-            $port = 6379;
-            $my_redis = new MyRedisCache($host,$port);
+            $my_redis = new MyRedisCache();
             $result = $my_redis->metricCache($uid);
             $ret->result = $result;
         }catch(Exception $e){
@@ -45,17 +43,15 @@ class ApiPlusController  extends Controller
 
     public function tagJson(Request $request)
     {
-        //$uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 1;
+        $uid = $request->header('X-Consumer-Custom-ID');
+        //$uid = 1;
         if(!$uid) return;
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->message = "success";
         $ret->result = [];
         try{
-            $host = "172.29.225.121";
-            $port = 6379;
-            $my_redis = new MyRedisCache($host,$port);
+            $my_redis = new MyRedisCache();
             $ret->result = $my_redis->tagsCache($uid);
         }catch(Exception $e){
             $ret->code = 500;

@@ -20,8 +20,8 @@ class Metric
     private $uid;
     private $tags;
 
-    private $tsdb_url = 'http://172.29.225.121:4242'; //opentsdb服务器
-    //private $tsdb_url = 'http://172.29.231.177:4242'; //opentsdb服务器
+    //private $tsdb_url = 'http://172.29.225.121:4242'; //opentsdb服务器
+    private $tsdb_url = 'http://172.29.231.177:4242'; //opentsdb服务器
 
     public function __construct($metrics_in=null,$host=null,$uid=null)
     {
@@ -153,8 +153,9 @@ class Metric
             if(!empty($data->$item)){
                 $sub = new \stdClass();
                 $sub->metric = $key;
-                $sub->timestamp = time();
-                $sub->value = $data->$item;
+                //$sub->timestamp = time();
+                $sub->timestamp = floatval($this->metrics_in->collection_timestamp);
+                $sub->value = floatval($data->$item);
                 $sub->tags = new \stdClass();//$metric[3];
                 $sub->tags->host = $this->host;
                 $sub->tags->uid = $this->uid;//1;//$metrics_in->uuid;

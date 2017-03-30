@@ -233,8 +233,8 @@ class MetricController extends Controller
 
     public function info()
     {
-        $a = 1;
-        $a += 2+3+4;
-        echo $a;
+        $a = '-';
+        $b = 2+3;
+        echo $a+$b;
     }
 }

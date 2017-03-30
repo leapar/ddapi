@@ -17,14 +17,9 @@ use DB;
 
 class MyRedisCache
 {
-    private $redis_host = '127.0.0.1';
-    private $redis_port = '6379';
-
-    public function __construct($host,$port)
-    {
-        $this->redis_host = $host;
-        $this->redis_port = $port;
-    }
+    private $redis_host = '172.29.231.177';
+    private $redis_port = 6379;
+    private $redis_pass = 123456;
 
     /**
      * 设置redis 缓存
@@ -126,8 +121,10 @@ class MyRedisCache
     {
         $redis = new \Redis();
         $redis->connect($this->redis_host,$this->redis_port);
+        $redis->auth($this->redis_pass);
         $metric_key = 'search:metrics:uid='.$uid;
         $metrics = $redis->hKeys($metric_key);
+        if(empty($metrics)) return [];
         sort($metrics);
         $result = [];
         $pipe = $redis->multi(\Redis::PIPELINE);
@@ -150,7 +147,7 @@ class MyRedisCache
                         array_push($tags_temp,$arr[0].':'.$arr[1]);
                     }
                     if($arr[0] === 'host' && !empty($arr[1])){
-                        $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
+                        if(isset($custom_tags->$arr[1])) $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
                     }
                 }
             }
@@ -168,8 +165,10 @@ class MyRedisCache
     {
         $redis = new \Redis();
         $redis->connect($this->redis_host,$this->redis_port);
+        $redis->auth($this->redis_pass);
         $metric_key = 'search:metrics:uid='.$uid;
         $metrics = $redis->hKeys($metric_key);
+        if(empty($metrics)) return [];
         sort($metrics);
         $pipe = $redis->multi(\Redis::PIPELINE);
         foreach($metrics as $key => $metric){
@@ -190,7 +189,7 @@ class MyRedisCache
                         array_push($tags_temp,$arr[0].':'.$arr[1]);
                     }
                     if($arr[0] === 'host' && !empty($arr[1])){
-                        $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
+                        if(isset($custom_tags->$arr[1])) $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
                     }
                 }
             }
