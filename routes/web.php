@@ -18,7 +18,10 @@
 $app->get('/', function () use ($app) {
     return $app->version();
 });
-$app->get('/info', 'MetricController@info');
+
+$app->get('/info', function () use ($app) {
+    echo phpinfo();
+});
 
 
 $app->post('/datadog', 'MetricController@datadog');
@@ -65,3 +68,4 @@ $app->group(['prefix' => 'p0','namespace'=>'App\Http\Controllers'], function () 
     $app->get('metrics.json','ApiController@metricsJson');
     $app->get('tags.json','ApiController@tagJson');
 });
+
