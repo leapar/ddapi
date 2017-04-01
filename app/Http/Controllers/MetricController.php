@@ -43,9 +43,9 @@ class MetricController extends Controller
             $host = $metrics_in->internalHostname;
             $metrics = isset($metrics_in->metrics) ? $metrics_in->metrics : '';
 
-            //Log::info("intake_uid ===> ".$request->header('X-Consumer-Custom-ID'));
-            /*if($host == 'wan-215'){
-                Log::info("intake_data ===> ".json_encode($data));
+            Log::info("intake_uid ===> ".$request->header('X-Consumer-Custom-ID'));
+            /*if($host == 'xu.long'){
+                Log::info("check_rum ===> ".json_encode($data));
             }*/
             $uid = $request->header('X-Consumer-Custom-ID');
             //$uid = "1"; //test
@@ -148,7 +148,7 @@ class MetricController extends Controller
             $series_in = \GuzzleHttp\json_decode($data);
             $uid = $request->header('X-Consumer-Custom-ID');
 
-            //Log::info("series_uid ===> ".$request->header('X-Consumer-Custom-ID'));
+            Log::info("series_uid ===> ".$request->header('X-Consumer-Custom-ID'));
             if(!$uid) return;
 
             $series = $series_in->series;
@@ -196,6 +196,7 @@ class MetricController extends Controller
             $check_run = \GuzzleHttp\json_decode($data);
             $uid = $request->header('X-Consumer-Custom-ID');
             //$uid = "1"; //test
+            Log::info("check_run ===> ".$request->header('X-Consumer-Custom-ID'));
             if(!$uid) return;
 
             if(!$check_run) return;

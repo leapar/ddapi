@@ -72,7 +72,7 @@ class HostJobV1 extends Job
                 //"updatetime" => date("Y-m-d H:i:s"),
                 "colletcionstamp" => $this->metrics_in->collection_timestamp,
                 //"processmetrics" => isset($this->metrics_in->processes) ? json_encode($this->metrics_in->processes) : null,
-                "diskutilization" => $this->disk_used / $this->disk_total * 100,
+                "diskutilization" => $this->disk_total == 0 ? 0 : $this->disk_used / $this->disk_total * 100,
                 "disksize" => $this->disk_total,
                 "hostName" => $hostname,
                 "ptype" => $this->metrics_in->os,

@@ -34,7 +34,7 @@ class UpdRedis extends Command
      */
     public function handle()
     {
-        MyRedisCache::setUserCache();
-        MyRedisCache::setNodeHostCache();
+        //MyRedisCache::setUserCache();
+        //MyRedisCache::setNodeHostCache();
     }
 }
