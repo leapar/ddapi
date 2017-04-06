@@ -18,8 +18,8 @@ class ApiController  extends Controller
 {
     public function metricsJson(Request $request)
     {
-        //$uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 1;
+        $uid = $request->header('X-Consumer-Custom-ID');
+        //$uid = 1;
         if(!$uid) return;
 
         $host_tags = MyApi::getCustomTagsByHost($uid);

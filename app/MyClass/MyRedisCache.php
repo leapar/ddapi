@@ -18,6 +18,7 @@ use DB;
 class MyRedisCache
 {
     private $redis_host = '172.29.231.177';
+    //private $redis_host = '172.29.225.50';
     private $redis_port = 6379;
     private $redis_pass = 123456;
 
@@ -122,14 +123,14 @@ class MyRedisCache
         $redis = new \Redis();
         $redis->connect($this->redis_host,$this->redis_port);
         $redis->auth($this->redis_pass);
-        $metric_key = 'search:metrics:uid='.$uid;
+        $metric_key = 'search:metrics:'.$uid.':uid='.$uid;
         $metrics = $redis->hKeys($metric_key);
         if(empty($metrics)) return [];
         sort($metrics);
         $result = [];
         $pipe = $redis->multi(\Redis::PIPELINE);
         foreach($metrics as $key => $metric){
-            $tag_key = "search:mts:".$metric;
+            $tag_key = "search:mts:".$uid.":".$metric;
             $pipe->hKeys($tag_key);
         }
         $replies = $pipe->exec();
@@ -166,13 +167,13 @@ class MyRedisCache
         $redis = new \Redis();
         $redis->connect($this->redis_host,$this->redis_port);
         $redis->auth($this->redis_pass);
-        $metric_key = 'search:metrics:uid='.$uid;
+        $metric_key = 'search:metrics:'.$uid.':uid='.$uid;
         $metrics = $redis->hKeys($metric_key);
         if(empty($metrics)) return [];
         sort($metrics);
         $pipe = $redis->multi(\Redis::PIPELINE);
         foreach($metrics as $key => $metric){
-            $tag_key = "search:mts:".$metric;
+            $tag_key = "search:mts:".$uid.":".$metric;
             $pipe->hKeys($tag_key);
         }
         $replies = $pipe->exec();

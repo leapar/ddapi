@@ -29,8 +29,7 @@ class ApiPlusController  extends Controller
 
         try{
             $my_redis = new MyRedisCache();
-            $result = $my_redis->metricCache($uid);
-            $ret->result = $result;
+            $ret->result = $my_redis->metricCache($uid);
         }catch(Exception $e){
             $result = [];
             $ret->code = 500;
@@ -44,7 +43,7 @@ class ApiPlusController  extends Controller
     public function tagJson(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        //$uid = 1;
+        //$uid = 19;
         if(!$uid) return;
         $ret = new \stdClass();
         $ret->code = 0;
