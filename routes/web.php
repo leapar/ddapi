@@ -41,6 +41,8 @@ $app->get('test','ApiController@test');
 
 $app->group(['prefix' => 'p1','namespace'=>'App\Http\Controllers'], function () use ($app) {
     $app->get('metric_types/normal_mode_list','ApiController@normalModeList');
+    $app->get('metric_types','ApiController@metricTypes');
+    $app->post('metric_types/update','ApiController@metricTypesUpdate');
     $app->get('dashboards.json','ApiController@dashboardsJson');
     $app->get('dashboards/{dasbid}/show.json','ApiController@showJson');
     $app->get('dashboards/{dasbid}/charts.json','ApiController@chartsJson');

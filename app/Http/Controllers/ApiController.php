@@ -48,43 +48,7 @@ class ApiController  extends Controller
 
     public function test(Request $request)
     {
-        $uid = 1;
-        if(!$uid) return;
-
-        $url = MyApi::TSDB_URL . '/api/search/uidmeta?query=custom.uid:'.$uid.'&limit=10000';
-        $res = \GuzzleHttp\json_decode(MyApi::httpGet($url)); // 自定义tag
-        $host_tags = new \stdClass();
-        foreach($res->results as $item){
-            if($item->custom){
-                $host = $item->custom->host;
-                $host_tags->$host = [];
-                foreach($item->custom as $key => $value){
-                    if($key != 'uid' && $key != 'host' && $value){
-                        array_push($host_tags->$host,$key.':'.$value);
-                    }
-                }
-            }
-        }
-        try{
-            $res = MyApi::getMetricJson($uid);
-            //var_dump($res);exit();
-            $result = [];
-            if(!empty($res)){
-                $result = MyApi::lookupRes($res,$host_tags);
-            }
-            $code = 0;
-            $message = 'success';
-        }catch(Exception $e){
-            $result = [];
-            $code = 500;
-            $message = 'fail';
-            Log::info('error == ' . $e->getMessage());
-        }
-        $ret = new \stdClass();
-        $ret->code = $code;
-        $ret->message = $message;
-        $ret->result = $result;
-        return response()->json($ret);
+        MyApi::putHostTags([],'cfeng-4',1);
     }
 
     public function tagJson(Request $request)
@@ -650,6 +614,47 @@ class ApiController  extends Controller
         $ret->result = $lists;
 
         return response()->json($ret);
+    }
+
+    public function metricTypes(Request $request)
+    {
+        $uid = $request->header('X-Consumer-Custom-ID');
+        //$uid = 1;
+
+        $ret = new \stdClass();
+        $ret->code = 0;
+        $ret->message = 'success';
+        $ret->result = [];
+        if(!$uid){
+            $ret->message = '未知UID';
+            return response()->json($ret);
+        }
+        if(!$request->has('metric')){
+            $ret->message = '参数错误';
+            return response()->json($ret);
+        }
+        $ret->result = MyApi::getMetricTypes($uid,$request->metric);
+
+        return response()->json($ret);
+    }
+
+    public function metricTypesUpdate(Request $request)
+    {
+        $uid = $request->header('X-Consumer-Custom-ID');
+        //$uid = 1;
+
+        $ret = new \stdClass();
+        $ret->code = 0;
+        $ret->message = 'success';
+        $ret->result = [];
+        if(!$uid){
+            $ret->message = '未知UID';
+            return response()->json($ret);
+        }
+        $data = json_decode($request->getContent());
+        $res = MyApi::updateMetricTypes($uid,$data);
+
+        return response()->json($res);
     }
 
 }
