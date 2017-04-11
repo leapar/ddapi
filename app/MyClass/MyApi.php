@@ -635,7 +635,7 @@ class MyApi
             $chart_id = DB::table('charts')->insertGetId($data);
 
             array_push($orders,[$chart_id,$x,$y,$w,$h]);
-            if(count($orders) >= 4){//换行
+            if($x >= 9){//换行
                 $y += 2;
                 $x = 0;
             }else{
