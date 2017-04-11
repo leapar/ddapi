@@ -231,7 +231,7 @@ class ApiController  extends Controller
     public function cloneDasb(Request $request,$dasid)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 1;
+        //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
         if($res_u->code != 0) response()->json($res_u);
         $ret = new \stdClass();
@@ -274,7 +274,7 @@ class ApiController  extends Controller
     public function addMore(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 1;
+        //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
         if($res_u->code != 0) response()->json($res_u);
 
