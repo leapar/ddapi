@@ -65,6 +65,7 @@ class Metric
 
     public function getMetric($metric)
     {
+        $num = 2;
         $sub = new \stdClass();
         $sub->metric = $metric[0];
         $sub->timestamp = $metric[1];
@@ -74,19 +75,24 @@ class Metric
         $sub->tags->host = $this->host;
         $sub->tags->uid = $this->uid;//1;//$metrics_in->uuid;
         if(isset($tag->device_name) && !empty($tag->device_name)) {
+            $num ++;
             $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
         }
 
         if(isset($tag->tags)) {
             foreach($tag->tags as $value) {
                 $tmps = explode(":",$value);
-
-                if(count($tmps) == 2) {
+                if(count($tmps) == 2 && $num < 6){
+                    $tgk = $tmps[0];
+                    $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
+                    $num ++;
+                }
+                /*if(count($tmps) == 2) {
                     //	Log::info("value===".$tmps[1]);
                     if($tmps[0] == "instance"){
                         $sub->tags->instance = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
                     }
-                }
+                }*/
             }
         }
 

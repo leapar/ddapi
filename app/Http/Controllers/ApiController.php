@@ -20,7 +20,8 @@ class ApiController  extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
-        if(!$uid) return;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
 
         $host_tags = MyApi::getCustomTagsByHost($uid);
 
@@ -55,6 +56,9 @@ class ApiController  extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
+
         $url = MyApi::TSDB_URL . '/api/search/uidmeta?query=custom.uid:'.$uid.'&limit=10000';
         $res = \GuzzleHttp\json_decode(MyApi::httpGet($url)); // 自定义tag
 
@@ -87,86 +91,12 @@ class ApiController  extends Controller
 
     public function normalModeList(Request $request)
     {
-        $ret = new \stdClass();
-        $ret->code = 0;
-        $ret->message = 'success';
-        $ret->result = [];
-
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
-        if(!$uid){
-            $ret->message = '请求出错，请重试';
-            return response()->json($ret);
-        };
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
 
-        $metrics = [];
-        $metric_hosts = DB::table('metric_host')
-            ->leftJoin('host_user', 'metric_host.hostid', '=', 'host_user.hostid')
-            ->where('host_user.userid',$uid)
-            ->select('metric_host.check_run','metric_host.service_checks')->get();
-        foreach($metric_hosts as $metric_host){
-            $check_run  = \GuzzleHttp\json_decode($metric_host->check_run);
-            $service_check = \GuzzleHttp\json_decode($metric_host->service_checks);
-            if(!empty($check_run)){
-                foreach($check_run as $check){
-                    $check_status = $check->check;
-                    if($check->status == 0){
-                        $tmps = explode(".",$check_status);
-                        array_push($metrics,$tmps[0]);
-                    }
-                }
-            }
-            if(!empty($service_check)){
-                foreach($service_check as $check){
-                    $check_status = $check->check;
-                    $tmps = explode(".",$check_status);
-                    if(end($tmps) == 'check_status' && isset($check->tags) && $check->status == 0){
-                        $tags = explode(":",$check->tags[0]);
-                        array_push($metrics,$tags[1]);
-                    }
-                }
-            }
-        }
-        $metrics = array_unique($metrics);
-        if(!in_array('system',$metrics)){
-            array_push($metrics,'system');
-        }
-
-        $node = DB::table('metric_dis')
-            /*->leftJoin('metric_service', 'metric_dis.integrationid', '=', 'metric_service.id')*/
-            ->whereIn('integrationid',$metrics)
-            ->select('metric_dis.integrationid as integration','metric_dis.subname','metric_dis.metric_name','metric_dis.short_description','metric_dis.metric_type as type','metric_dis.description','metric_dis.per_unit')
-            ->get();
-
-        $integration_arr = [];
-        foreach($node as $val){
-            $subname = $val->subname;
-            $integration = $val->integration;
-            if(!isset($integration_arr[$integration][$subname])){
-                $integration_arr[$integration][$subname] = [];
-            }
-            $arr = explode(".",$val->metric_name);
-            $end = end($arr);
-            $des = !empty($val->short_description) ? $val->short_description : $end;
-            $tmps3 = new \stdClass();
-            $tmps3->$des = new \stdClass();
-            $tmps3->$des->description = $val->description;
-            $tmps3->$des->metric_name = $val->metric_name;
-            $tmps3->$des->type = $val->type;
-            $tmps3->$des->unit = $val->per_unit;
-
-            array_push($integration_arr[$integration][$subname],$tmps3);
-        }
-        foreach($integration_arr as $integration => $subname_arr){
-            $tmps1 = new \stdClass();
-            $tmps1->$integration = [];
-            foreach($subname_arr as $subname => $tmps3){
-                $tmps2 = new \stdClass();
-                $tmps2->$subname = $tmps3;
-                array_push($tmps1->$integration,$tmps2);
-            }
-            array_push($ret->result,$tmps1);
-        }
+        $ret = MyApi::normalModeList($uid);
         return response()->json($ret);
     }
 
@@ -174,64 +104,32 @@ class ApiController  extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
+
         $ret = Dashboard::findByid($dasbid,$uid);
         return response()->json($ret);
     }
 
     public function dashboardsJson(Request $request)
     {
-
-        $ret = new \stdClass();
-        $ret->code = 0;
-        $ret->result = [];
-
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
-        if(!$uid){
-            $ret->message = '请求出错，请重试';
-            return response()->json($ret);
-        };
-
-        if($request->has('favorite') && $request->favorite == 'true'){
-            $is_favorite = 1;
-        }else{
-            $is_favorite = 0;
-        }
-        $res = DB::table('dashboard')
-                ->select('dashboard.*',DB::raw('UNIX_TIMESTAMP(update_time)*1000 as update_time'),DB::raw('UNIX_TIMESTAMP(create_time)*1000 as create_time'))
-                ->where('user_id',$uid);
-
-        if($request->has('favorite')){
-            $res = $res->where('is_favorite',$is_favorite);
-        }
-        if($request->has('type')){
-            $res = $res->where('type',$request->type);
-        }
-        $res = $res->get();
-        foreach($res as $item){
-            $item->is_favorite = $item->is_favorite ? true : false;
-            $item->is_installed = $item->is_installed ? true : false;
-            $item->update_time = strtotime($item->update_time) * 1000;
-            $item->create_time = strtotime($item->create_time) * 1000;
-        }
-        $ret->message = 'success';
-        $ret->result = $res;
-
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
+        $ret = MyApi::dashboardsJson($uid,$request);
         return response()->json($ret);
     }
 
     public function chartsJson($dasbid)
     {
         $charts = DB::table('charts')->where('dashboard_id',$dasbid)->get();
-
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->message = "success";
         foreach($charts as $chart){
             $chart->meta = json_decode($chart->meta,true);
-            //$chart->meta = $chart->meta;
             $chart->metrics = json_decode($chart->metrics,true);
-            //$chart->metrics = $chart->metrics;
         }
         $ret->result = $charts;
         if(empty($ret->result)){
@@ -241,29 +139,22 @@ class ApiController  extends Controller
         return response()->json($ret);
     }
 
+    //添加图表
     public function addJson(Request $request,$dasid)
     {
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->message = "success";
         $ret->result = false;
-
         if(!$request->has('chart')) return response()->json($ret);
-
-        $param = $order = \GuzzleHttp\json_decode($request->chart);
-        $data = [
-            'name' => $param->name,
-            'dashboard_id' => $dasid,
-            'type' => $param->type,
-            'meta' => json_encode($param->meta),
-            'metrics' => json_encode($param->metrics),
-            'create_time' => date('Y-m-d H:i:s'),
-            'update_time' => date('Y-m-d H:i:s')
-        ];
-        $res = DB::table('charts')->insert($data);
-        $ret->result = $res;
-
-        return response()->json($ret);
+        $res = DB::table('dashboard')->where('id',$dasid)->first();
+        if(empty($res)){
+            $ret->message = "fail 未能获取仪表盘";
+            return response()->json($ret);
+        }
+        $result = MyApi::addJson($res,$request,$dasid);
+        $ret->result = $result;
+        return response()->json($res);
     }
 
     public function updateChart(Request $request,$chartid,$dasid)
@@ -272,13 +163,11 @@ class ApiController  extends Controller
         $ret->code = 0;
         $ret->message = "success";
         $ret->result = false;
-
         if(!$request->has('chart')){
             $ret->message = "参数错误";
             return response()->json($ret);
         }
-
-        $param = $order = \GuzzleHttp\json_decode($request->chart);
+        $param = \GuzzleHttp\json_decode($request->chart);
         $data = [
             'name' => $param->name,
             'dashboard_id' => $dasid,
@@ -313,6 +202,8 @@ class ApiController  extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
@@ -323,36 +214,29 @@ class ApiController  extends Controller
             $ret->message = '参数错误请重试';
             return response()->json($ret);
         }
-
         if($request->has('charts')){
             //charts:[["55",0,0,4,2],["56",8,0,4,2]]
             $param = $order = $request->charts;
             DB::table('dashboard')->where('id',$dasid)->update(['order'=>$param,'update_time' => date("Y-m-d H:i:s")]);
-
             $ret = Dashboard::findByid($dasid,$uid);
         }
         if($request->has('dashboardName')){
             $param = $order = $request->dashboardName;
             DB::table('dashboard')->where('id',$dasid)->update(['name'=>$param,'update_time' => date("Y-m-d H:i:s")]);
-
             $ret = Dashboard::findByid($dasid,$uid);
         }
-
         return response()->json($ret);
     }
 
     public function cloneDasb(Request $request,$dasid)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        //$uid = 1;
-
+        $uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
         $ret = new \stdClass();
         $ret->code = 0;
-        $ret->message = "success";
         $ret->result = [];
-
-        //dashboardName:1111-clone
-        //dashboardDesc:仪表盘描述
         if(!$request->has('dashboardName') || !$request->has('dashboardDesc')){
             $ret->message = '参数错误请重试';
             return response()->json($ret);
@@ -362,29 +246,8 @@ class ApiController  extends Controller
             $ret->message = '未能获取仪表盘';
             return response()->json($ret);
         }
-        unset($res->id);
-        $res->name = $request->dashboardName;
-        $res->desc = $request->dashboardDesc;
-        $res->type = 'user';
-        $res->user_id = $uid;
-        $res->is_able = 1;
-        $res->create_time = date("Y-m-d H:i:s");
-        $res->update_time = date("Y-m-d H:i:s");
-        $res = json_encode($res);
-        $res = json_decode($res,true);
-        $id = DB::table('dashboard')->insertGetId($res);
-        $charts = DB::table('charts')->where('dashboard_id',$dasid)->get();
-        foreach($charts as $chart){
-            unset($chart->id);
-            $chart->create_time = date("Y-m-d H:i:s");
-            $chart->update_time = date("Y-m-d H:i:s");
-            $chart->dashboard_id = $id;
-            $chart = json_encode($chart);
-            $chart = json_decode($chart,true);
-            DB::table('charts')->insert($chart);
-        }
+        $id = MyApi::cloneDasb($res,$request,$uid,$dasid);
         $ret = Dashboard::findByid($id,$uid);
-
         return response()->json($ret);
     }
 
@@ -392,6 +255,8 @@ class ApiController  extends Controller
 
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
 
         $ret = Dashboard::findByid($dasid,$uid);
         if(empty($ret->result)){
@@ -405,68 +270,41 @@ class ApiController  extends Controller
 
     }
 
+    //浏览指标 新建仪表盘
     public function addMore(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        //$uid = 1;
+        $uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
+
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->message = 'success';
         $ret->result = [];
-
-        if(!$uid){
-            $ret->message = "fail 未知用户";
-            return response()->json($ret);
-        }
-
         $data = json_decode($request->getContent());
-        //$data = json_decode($data);
         if(empty($data)){
             $ret->message = "fail 未能获取参数";
             return response()->json($ret);
         }
-        $charts = $data->charts;
-        $name = $data->dashboard->dashboard_name;
-
-        $data = [
-            'name' => $name,
-            'type' => 'user',
-            'user_id' => $uid,
-            'is_able' => 1,
-            'create_time' => date("Y-m-d H:i:s"),
-            'update_time' => date("Y-m-d H:i:s")
-        ];
-        $id = DB::table('dashboard')->insertGetId($data);
-
-        foreach($charts as $chart){
-            $data = [
-                'name' => $chart->dashboard_chart_name,
-                'create_time' => date("Y-m-d H:i:s"),
-                'update_time' => date("Y-m-d H:i:s"),
-                'dashboard_id' => $id,
-                'type' => $chart->dashboard_chart_type,
-                'metrics' => json_encode($chart->metrics)
-            ];
-            DB::table('charts')->insert($data);
-        }
-
+        $id = MyApi::addMore($data,$uid);
         $ret = Dashboard::findByid($id,$uid);
 
         return response()->json($ret);
     }
 
+    //浏览指标 已有仪表盘
     public function batchAdd(Request $request,$dasbid)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
+
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->message = 'success';
         $ret->result = [];
-        if(!$uid){
-            $ret->message = "fail 未知用户";
-            return response()->json($ret);
-        }
         $res = DB::table('dashboard')->where('id',$dasbid)->first();
         if(empty($res)){
             $ret->message = "fail 未能获取仪表盘";
@@ -477,26 +315,18 @@ class ApiController  extends Controller
             $ret->message = "fail 未能获取参数";
             return response()->json($ret);
         }
-
-        foreach($data as $chart){
-            $data = [
-                'name' => $chart->dashboard_chart_name,
-                'create_time' => date("Y-m-d H:i:s"),
-                'update_time' => date("Y-m-d H:i:s"),
-                'dashboard_id' => $dasbid,
-                'type' => $chart->dashboard_chart_type,
-                'metrics' => json_encode($chart->metrics)
-            ];
-            DB::table('charts')->insert($data);
-        }
-
+        $orders = MyApi::batchAdd($res,$data,$dasbid);
         return $this->chartsJson($dasbid);
     }
 
+    //添加模板
     public function templateAdd(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
+
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->message = 'success';
@@ -536,10 +366,13 @@ class ApiController  extends Controller
         return response()->json($ret);
     }
 
+    //更新模板
     public function templateUpdate(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
@@ -547,7 +380,7 @@ class ApiController  extends Controller
         $ret->result = [];
 
         $data = json_decode($request->getContent());
-        if(!$uid || empty($data)){
+        if(empty($data)){
             $ret->message = "fail 未能获取参数";
             return response()->json($ret);
         }
@@ -579,10 +412,14 @@ class ApiController  extends Controller
         return response()->json($ret);
     }
 
+    //删除模板
     public function templateDel(Request $request,$id)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
+
         $ret = Metric::findMetricTemplateByid($id,$uid);
         if(!empty($ret->result)){
             DB::table('metric_templates')->where('template_id',$id)->delete();
@@ -594,14 +431,13 @@ class ApiController  extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
+
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->message = 'success';
         $ret->result = [];
-        if(!$uid){
-            $ret->message = "uid获取失败";
-            return response()->json($ret);
-        }
 
         $lists = DB::table('metric_templates')->where('user_id',$uid)->orderBy('updated_at','desc')->get();
         foreach($lists as $item){
@@ -620,15 +456,14 @@ class ApiController  extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->message = 'success';
         $ret->result = [];
-        if(!$uid){
-            $ret->message = '未知UID';
-            return response()->json($ret);
-        }
+
         if(!$request->has('metric')){
             $ret->message = '参数错误';
             return response()->json($ret);
@@ -642,19 +477,18 @@ class ApiController  extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->message = 'success';
         $ret->result = [];
-        if(!$uid){
-            $ret->message = '未知UID';
-            return response()->json($ret);
-        }
-        $data = json_decode($request->getContent());
-        $res = MyApi::updateMetricTypes($uid,$data);
 
-        return response()->json($res);
+        $data = json_decode($request->getContent());
+        $ret->result = MyApi::updateMetricTypes($uid,$data);
+
+        return response()->json($ret);
     }
 
 }
