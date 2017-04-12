@@ -284,15 +284,15 @@ class MyApi
         $up_data = [
             'integration' => $integration[0],
             'metric_name' => $data->metric_name,
-            'description' => $data->description,
-            'metric_type' => $data->metric_type,
-            'per_unit' => $data->per_unit,
-            'plural_unit' => $data->plural_unit,
             'type' => 1,
             'userId' => $uid,
             'updated_at' => date('Y-m-d H:i:s')
         ];
-
+        if(isset($data->description)) $up_data['description'] = $data->description;
+        if(isset($data->metric_type)) $up_data['metric_type'] = $data->metric_type;
+        if(isset($data->plural_unit)) $up_data['plural_unit'] = $data->plural_unit;
+        if(isset($data->per_unit)) $up_data['per_unit'] = $data->per_unit;
+        
         $res = DB::table('metric_types')->where('userId', $uid)->where('metric_name', $data->metric_name)->update($up_data);
         if (!$res) {
             $up_data['created_at'] = date('Y-m-d H:i:s');
