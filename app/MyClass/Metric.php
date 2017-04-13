@@ -369,7 +369,7 @@ class Metric
         return $this->tags;
     }
 
-    public static function checktime($key,$time=null)
+    public function checktime($key,$time=null)
     {
         if (Cache::has($key)) {
             return false;
