@@ -18,7 +18,9 @@ class RedisController extends Controller
     {
         //MyRedisCache::setUserCache();
         //Redis::command('DEL',['HOST_DATA_1']);
-        return Redis::hgetall('HOST_DATA_1');
+        //return Redis::hgetall('HOST_DATA_1');
+        $hostid = md5(md5(1).md5('cfeng-4'));
+        return Redis::command('HGET',['HOST_DATA_1',$hostid]);
     }
 
     /**

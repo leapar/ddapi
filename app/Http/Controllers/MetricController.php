@@ -85,7 +85,7 @@ class MetricController extends Controller
                 $this->dispatch($hostjobV1);
             }
 
-            $res = $my_metric->checktime($hostid.'intake_redis',1);
+            $res = $my_metric->checktime($hostid.'intake_redis',3);
             if($res){
                 $this->hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used);
             }
@@ -132,33 +132,33 @@ class MetricController extends Controller
             }
 
             $hostid = md5(md5($uid).md5($host));
-            $res = $my_metric->checktime($hostid.'intake_redis',1);
-            if($res){
+            $res = $my_metric->checktime($hostid.'intake_redis',3);
+            if($res && !empty($series)){
                 $cpuIdle = 0;
                 $disk_total = 0;
                 $disk_used = 0;
                 $num = 0;
-                if(!empty($series)) {
-                    foreach($series as $item) {
-                        $metric = $item->metric;
-                        $value = $item->points[0][1];
-                        if($metric == "system.cpu.idle"){
-                            $cpuIdle = $value;
-                            $num++;
-                        }
-                        if($metric == "system.disk.total"){
-                            $disk_total += $value;
-                            $num++;
-                        }
-                        if($metric == "system.disk.used"){
-                            $disk_used += $value;
-                            $num++;
-                        }
+                foreach($series as $item) {
+                    $metric = $item->metric;
+                    $value = $item->points[0][1];
+                    if($metric === "system.cpu.idle"){
+                        $cpuIdle += $value;
+                        $num++;
+                    }
+                    if($metric === "system.disk.total"){
+                        $disk_total += $value;
+                        $num++;
+                    }
+                    if($metric === "system.disk.used"){
+                        $disk_used += $value;
+                        $num++;
                     }
                 }
+                Log::info("num = " . $num);
                 if($num > 0){
-                    $this->hostRedis($series,$host,$uid,$cpuIdle,$disk_total,$disk_used);
+                    //$this->hostRedis($series,$host,$uid,$cpuIdle,$disk_total,$disk_used);
                 }
+
             }
 
         }catch(Exception $e){
