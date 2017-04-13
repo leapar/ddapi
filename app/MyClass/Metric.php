@@ -371,14 +371,18 @@ class Metric
 
     public function checktime($key,$time=null)
     {
+        $minutes = 5;
+        if(!is_null($time)) $minutes = $time;
         if (Cache::has($key)) {
+            $r_time = Cache::get($key);
+            if(time() - $r_time > $minutes*60){
+                Cache::forget($key);
+                Cache::put($key,time(),$minutes);
+                return true;
+            }
             return false;
         }else{
-            if(!is_null($time)){
-                Cache::put($key,time(),$time);
-            }else{
-                Cache::put($key,time(),5);
-            }
+            Cache::put($key,time(),$minutes);
             return true;
         }
 
