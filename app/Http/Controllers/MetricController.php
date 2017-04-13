@@ -137,22 +137,28 @@ class MetricController extends Controller
                 $cpuIdle = 0;
                 $disk_total = 0;
                 $disk_used = 0;
+                $num = 0;
                 if(!empty($series)) {
                     foreach($series as $item) {
                         $metric = $item->metric;
                         $value = $item->points[0][1];
                         if($metric == "system.cpu.idle"){
                             $cpuIdle = $value;
+                            $num++;
                         }
                         if($metric == "system.disk.total"){
                             $disk_total += $value;
+                            $num++;
                         }
                         if($metric == "system.disk.used"){
                             $disk_used += $value;
+                            $num++;
                         }
                     }
                 }
-                $this->hostRedis($series,$host,$uid,$cpuIdle,$disk_total,$disk_used);
+                if($num > 0){
+                    $this->hostRedis($series,$host,$uid,$cpuIdle,$disk_total,$disk_used);
+                }
             }
 
         }catch(Exception $e){
