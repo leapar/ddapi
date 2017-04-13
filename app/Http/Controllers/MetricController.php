@@ -30,37 +30,32 @@ class MetricController extends Controller
 
     public function intake(Request $request)
     {
-        //exit();
-        //echo "success";
         try{
-            //Log::info("intake_start === " .time());
             $data = file_get_contents('php://input');
             if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
                 $data = zlib_decode ($data);
             }
             $metrics_in = \GuzzleHttp\json_decode($data);
-
             $host = $metrics_in->internalHostname;
             $metrics = isset($metrics_in->metrics) ? $metrics_in->metrics : '';
 
-            Log::info("intake_uid ===> ".$request->header('X-Consumer-Custom-ID'));
             /*if($host == 'xu.long'){
                 Log::info("check_rum ===> ".json_encode($data));
             }*/
             $uid = $request->header('X-Consumer-Custom-ID');
-            //$uid = "1"; //test
-
-            if(!$uid) return;
+            if(!$uid){
+                Log::info("intake_uid = " . $uid);
+                return;
+            }
 
             $hostid = md5(md5($uid).md5($host));
-
             $my_metric = new Metric($metrics_in,$host,$uid);
 
             //1，保存 opentsdb
             $arrPost = array();
             $arrPost = $my_metric->getMetricByOS($arrPost);
 
-            $cpuIdle = isset($metrics_in->cpuIdle) ? $metrics_in->cpuIdle : "null";
+            $cpuIdle = isset($metrics_in->cpuIdle) ? $metrics_in->cpuIdle : 0;
             $disk_total = 0;
             $disk_used = 0;
             if(!empty($metrics)) {
@@ -79,15 +74,10 @@ class MetricController extends Controller
                     $arrPost = $my_metric->checkarrPost($arrPost);
                 }
             }
-
             if(count($arrPost) > 0) {
                 $my_metric->post2tsdb($arrPost);
                 $arrPost = array();
             }
-
-            //$my_metric->setHostTag();
-            //$tags = $my_metric->getTags();
-
             if(isset($metrics_in->gohai) && !empty($metrics_in->gohai)){
                 MyApi::putHostTags($metrics_in,$host,$uid);
 
@@ -96,42 +86,14 @@ class MetricController extends Controller
             }
 
             $res = $my_metric->checktime($hostid.'intake_redis',1);
-            list($t1, $t2) = explode(' ', microtime());
-            $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
             if($res){
-                //保存数据到redis
-                $load15 = "system.load.15";
-                $redis_data = [
-                    "hostId" => $hostid,
-                    "cpu" => 100 - $cpuIdle,
-                    "iowait" => isset($metrics_in->cpuWait) ? $metrics_in->cpuWait : null,
-                    "load15" => isset($metrics_in->$load15) ? $metrics_in->$load15 : null,
-                    "colletcionstamp" => $metrics_in->collection_timestamp,
-                    "diskutilization" => $disk_total == 0 ? 0 :$disk_used / $disk_total * 100,
-                    "disksize" => $disk_total,
-                    "hostName" => $host,
-                    "ptype" => $metrics_in->os,
-                    "uuid" => $metrics_in->uuid,
-                    "updatetime" => $msec
-                ];
-
-                $hsname = "HOST_DATA_".$uid;
-                Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
-                $host_process = "PROCESS_".$hostid;
-                $process = isset($metrics_in->processes) ? json_encode($metrics_in->processes->processes) : null;
-                Redis::command('HSET',[$hsname,$host_process,$process]);
+                $this->hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used);
             }
-
-
             $res = $my_metric->checktime($hostid.'intake');
             if(!$res) return;
 
             $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
-
-            //$tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
-            //$this->dispatch($tagjobV1);
-
         }catch(Exception $e){
             Log::error($e->getMessage());
         }
@@ -147,9 +109,10 @@ class MetricController extends Controller
             }
             $series_in = \GuzzleHttp\json_decode($data);
             $uid = $request->header('X-Consumer-Custom-ID');
-
-            Log::info("series_uid ===> ".$request->header('X-Consumer-Custom-ID'));
-            if(!$uid) return;
+            if(!$uid){
+                Log::info("series_uid = " . $uid);
+                return;
+            }
 
             $series = $series_in->series;
             if(!$series) return;
@@ -163,19 +126,34 @@ class MetricController extends Controller
             /*if($host == 'wan215'){
                 Log::info("series_data ===> ".json_encode($data));
             }*/
-            //$tags = $my_metric->getTags();
-
             if(count($arrPost) > 0) {
                 $my_metric->post2tsdb($arrPost);
                 $arrPost = array();
             }
 
             $hostid = md5(md5($uid).md5($host));
-            $res = $my_metric->checktime($hostid.'series');
-            if(!$res) return;
-
-            //$tagjobV1 = (new TagJobV1($tags))->onQueue("tagV1");
-            //$this->dispatch($tagjobV1);
+            $res = $my_metric->checktime($hostid.'intake_redis',1);
+            if($res){
+                $cpuIdle = 0;
+                $disk_total = 0;
+                $disk_used = 0;
+                if(!empty($series)) {
+                    foreach($series as $item) {
+                        $metric = $item->metric;
+                        $value = $item->points[0][1];
+                        if($metric == "system.cpu.idle"){
+                            $cpuIdle = $value;
+                        }
+                        if($metric == "system.disk.total"){
+                            $disk_total += $value;
+                        }
+                        if($metric == "system.disk.used"){
+                            $disk_used += $value;
+                        }
+                    }
+                }
+                $this->hostRedis($series,$host,$uid,$cpuIdle,$disk_total,$disk_used);
+            }
 
         }catch(Exception $e){
             Log::error($e->getMessage());
@@ -192,13 +170,12 @@ class MetricController extends Controller
             if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
                 $data = zlib_decode ($data);
             }
-
             $check_run = \GuzzleHttp\json_decode($data);
             $uid = $request->header('X-Consumer-Custom-ID');
-            //$uid = "1"; //test
-            Log::info("check_run ===> ".$request->header('X-Consumer-Custom-ID'));
-            if(!$uid) return;
-
+            if(!$uid){
+                Log::info("check_run = " . $uid);
+                return;
+            }
             if(!$check_run) return;
 
             //保存 mysql 保存metric_host todo
@@ -220,6 +197,60 @@ class MetricController extends Controller
         }
     }
 
+    private function hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used)
+    {
+        $hostid = md5(md5($uid).md5($host));
+        list($t1, $t2) = explode(' ', microtime());
+        $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+        $hsname = "HOST_DATA_".$uid;
+        $load15 = "system.load.15";
+        //保存数据到redis
+        $data = json_decode(Redis::command("HGET",[$hsname,$hostid]),true);
+        if(empty($data)){
+            $redis_data = [
+                "hostId" => $hostid,
+                "cpu" => 100 - $cpuIdle,
+                "diskutilization" => $disk_total == 0 ? 0 :$disk_used / $disk_total * 100,
+                "disksize" => $disk_total,
+                "hostName" => $host,
+                "updatetime" => $msec,
+                "iowait" =>  null,
+                "load15" => null,
+                "colletcionstamp" => time(),
+                "ptype" => '',
+                "uuid" => ''
+            ];
+        }else{
+            $redis_data = [
+                "hostId" => $hostid,
+                "cpu" => 100 - $cpuIdle,
+                "diskutilization" => $disk_total == 0 ? 0 :$disk_used / $disk_total * 100,
+                "disksize" => $disk_total,
+                "hostName" => $host,
+                "updatetime" => $msec,
+                "iowait" =>  $data['iowait'],
+                "load15" => $data['load15'],
+                "colletcionstamp" => time(),
+                "ptype" => $data['ptype'],
+                "uuid" => $data['uuid']
+            ];
+        }
+
+        if(isset($metrics_in->cpuWait)) $redis_data['iowait'] = $metrics_in->cpuWait;
+        if(isset($metrics_in->$load15)) $redis_data['load15'] = $metrics_in->$load15;
+        if(isset($metrics_in->collection_timestamp)) $redis_data['colletcionstamp'] = $metrics_in->collection_timestamp;
+        if(isset($metrics_in->os)) $redis_data['ptype'] = $metrics_in->os;
+        if(isset($metrics_in->uuid)) $redis_data['uuid'] = $metrics_in->uuid;
+
+        Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
+
+        if(isset($metrics_in->processes)){
+            $host_process = "PROCESS_".$hostid;
+            $process = json_encode($metrics_in->processes->processes);
+            Redis::command('HSET',[$hsname,$host_process,$process]);
+        }
+
+    }
 
 
     public function metadata(Request $request) {
