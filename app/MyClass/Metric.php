@@ -375,7 +375,7 @@ class Metric
             return false;
         }else{
             if(!is_null($time)){
-                Cache::put($key,time(),$time);
+                Cache::put($key,time(),1);
             }else{
                 Cache::put($key,time(),5);
             }

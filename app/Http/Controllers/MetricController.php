@@ -85,7 +85,7 @@ class MetricController extends Controller
                 $this->dispatch($hostjobV1);
             }
 
-            $res = $my_metric->checktime($hostid.'intake_redis',3);
+            $res = $my_metric->checktime($hostid.'intake_redis','time');
             if($res){
                 $this->hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used);
             }
@@ -101,7 +101,6 @@ class MetricController extends Controller
 
     public function series(Request $request)
     {
-        //exit();
         try{
             $data = file_get_contents('php://input');
             if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
@@ -113,7 +112,6 @@ class MetricController extends Controller
                 Log::info("series_uid = " . $uid);
                 return;
             }
-
             $series = $series_in->series;
             if(!$series) return;
 
@@ -132,7 +130,7 @@ class MetricController extends Controller
             }
 
             $hostid = md5(md5($uid).md5($host));
-            $res = $my_metric->checktime($hostid.'intake_redis',3);
+            $res = $my_metric->checktime($hostid.'intake_redis','time');
             if($res && !empty($series)){
                 $cpuIdle = 0;
                 $disk_total = 0;
@@ -155,8 +153,8 @@ class MetricController extends Controller
                     }
                 }
                 Log::info("num = " . $num);
-                if($num > 0){
-                    //$this->hostRedis($series,$host,$uid,$cpuIdle,$disk_total,$disk_used);
+                if($num >= 1){
+                    $this->hostRedis($series,$host,$uid,$cpuIdle,$disk_total,$disk_used);
                 }
 
             }
