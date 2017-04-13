@@ -85,7 +85,8 @@ class MetricController extends Controller
                 $this->dispatch($hostjobV1);
             }
 
-            $res = $my_metric->checktime($hostid.'intake_redis','time');
+            $res = Metric::checktime($hostid.'intake_redis',1);
+            Log::info('intake_redis = '.$res);
             if($res){
                 $this->hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used);
             }
@@ -130,8 +131,8 @@ class MetricController extends Controller
             }
 
             $hostid = md5(md5($uid).md5($host));
-            $res = $my_metric->checktime($hostid.'intake_redis','time');
-            if($res && !empty($series)){
+            $res = Metric::checktime($hostid.'intake_redis',1);
+            if($res){
                 $cpuIdle = 0;
                 $disk_total = 0;
                 $disk_used = 0;

@@ -369,13 +369,13 @@ class Metric
         return $this->tags;
     }
 
-    public function checktime($key,$time=null)
+    public static function checktime($key,$time=null)
     {
         if (Cache::has($key)) {
             return false;
         }else{
             if(!is_null($time)){
-                Cache::put($key,time(),1);
+                Cache::put($key,time(),$time);
             }else{
                 Cache::put($key,time(),5);
             }
