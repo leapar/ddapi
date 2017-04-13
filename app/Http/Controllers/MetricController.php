@@ -86,7 +86,6 @@ class MetricController extends Controller
             }
 
             $res = $my_metric->checktime($hostid.'intake_redis',1);
-            Log::info('intake_redis = '.$res);
             if($res){
                 $this->hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used);
             }
@@ -153,7 +152,6 @@ class MetricController extends Controller
                         $num++;
                     }
                 }
-                Log::info("num = " . $num);
                 if($num >= 1){
                     $this->hostRedis($series,$host,$uid,$cpuIdle,$disk_total,$disk_used);
                 }
