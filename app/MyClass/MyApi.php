@@ -18,6 +18,7 @@ class MyApi
 {
     //const  TSDB_URL = "http://172.29.225.121:4242";
     const  TSDB_URL = "http://172.29.231.177:4242";
+    const  TAG_PUT_URL = "http://172.29.231.177:8101";
 
     public static function getMetricJson($uid)
     {

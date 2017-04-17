@@ -79,7 +79,8 @@ class MetricController extends Controller
                 $arrPost = array();
             }
             if(isset($metrics_in->gohai) && !empty($metrics_in->gohai)){
-                MyApi::putHostTags($metrics_in,$host,$uid);
+                //MyApi::putHostTags($metrics_in,$host,$uid);
+                MyRedisCache::setCustomTags($metrics_in,$host,$uid);
 
                 $hostjobV1 = (new HostJobV1($metrics_in,$uid,$cpuIdle,$disk_total,$disk_used))->onQueue("hostV1");
                 $this->dispatch($hostjobV1);
@@ -264,12 +265,5 @@ class MetricController extends Controller
     }
     public function status(Request $request) {
         //   Log::info("status===".json_encode($request->all()));
-    }
-
-    public function info()
-    {
-        $a = '-';
-        $b = 2+3;
-        echo $a+$b;
     }
 }

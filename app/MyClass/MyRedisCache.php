@@ -46,74 +46,6 @@ class MyRedisCache
     }
 
     /**
-     * 设置用户 host tag metric metric_node 缓存
-     */
-    public static function setUserCache()
-    {
-        $users = DB::table('user')->select('id')->get();
-        foreach($users as $user){
-            //MULTI  开启redis事务
-            Redis::command('MULTI');
-
-            $uid = 'user_host_tag_metric_metric_node_'.$user->id;
-            Redis::command('DEL',[$uid]);
-
-            $userhosts = HostUser::findUserHostByUID($user->id);
-            foreach($userhosts as $userhost){
-                $ret = new \stdClass();
-                $hostid = $userhost->hostid;
-                $host = Host::findByHostid($userhost->hostid);
-                $ret->host = $host;
-                $tags = Tag::findTagHostByHostid($userhost->hostid);
-                $ret->tag = $tags;
-                $metrics = MetricModel::findMetricHostByHostid($userhost->hostid);
-                foreach($metrics as $metric){
-                    $metricnodes = MetricModel::findMetricNodeByHostid($userhost->hostid,$metric->metricid);
-                    $metric->metric_node = $metricnodes;
-                }
-                $ret->metric = $metrics;
-                $value = \GuzzleHttp\json_encode($ret);
-                Redis::command('HSET',[$uid,$hostid,$value]);
-            }
-
-            //EXEC 执行事务
-            Redis::command('EXEC');
-        }
-    }
-
-    /**
-     * 设置 用户node 缓存
-     */
-    public static function setNodeHostCache()
-    {
-        $users = DB::table('user')->select('id')->get();
-        foreach($users as $user){
-            //MULTI  开启redis事务
-            Redis::command('MULTI');
-
-            $uid = 'user_node_metric_node_'.$user->id;
-            Redis::command('DEL',[$uid]);
-
-            $userhosts = HostUser::findUserHostByUID($user->id);
-            $data = [];
-            foreach($userhosts as $userhost){
-                $node_hosts = MetricModel::findNodeHostByHostid($userhost->hostid);
-                foreach($node_hosts as $metric_node){
-                    $name = $metric_node->metric_name;
-                    if(!isset($data[$name])) $data[$name] = [];
-                    if(!in_array($userhost->hostid,$data[$name]))
-                        array_push($data[$name],$userhost->hostid);
-                    $value = \GuzzleHttp\json_encode($data[$name]);
-                    Redis::command('HSET',[$uid,$name,$value]);
-                }
-            }
-
-            //EXEC 执行事务
-            Redis::command('EXEC');
-        }
-    }
-
-    /**
      * 获取metric 及 tags
      * @param $uid
      * @return array
@@ -134,7 +66,8 @@ class MyRedisCache
             $pipe->hKeys($tag_key);
         }
         $replies = $pipe->exec();
-        $custom_tags = MyApi::getCustomTagsByHost($uid);
+        //$custom_tags = MyApi::getCustomTagsByHost($uid);
+        $custom_tags = MyRedisCache::getCustomTags($uid);
         foreach($metrics as $key => $metric){
             $temp = new \stdClass();
             $temp->metric = $metric;
@@ -147,11 +80,12 @@ class MyRedisCache
                     if($arr[0] != "uid"){
                         array_push($tags_temp,$arr[0].':'.$arr[1]);
                     }
-                    if($arr[0] === 'host' && !empty($arr[1])){
+                   /* if($arr[0] === 'host' && !empty($arr[1])){
                         if(isset($custom_tags->$arr[1])) $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
-                    }
+                    }*/
                 }
             }
+            $tags_temp = array_merge($tags_temp,$custom_tags);
             $tags_temp = array_unique($tags_temp);
             sort($tags_temp);
             $temp->tags = $tags_temp;
@@ -177,7 +111,8 @@ class MyRedisCache
             $pipe->hKeys($tag_key);
         }
         $replies = $pipe->exec();
-        $custom_tags = MyApi::getCustomTagsByHost($uid);
+        //$custom_tags = MyApi::getCustomTagsByHost($uid);
+        $custom_tags = MyRedisCache::getCustomTags($uid);
         $result = [];
         foreach($metrics as $key => $metric){
             $tags = $replies[$key];
@@ -189,17 +124,42 @@ class MyRedisCache
                     if($arr[0] != "uid"){
                         array_push($tags_temp,$arr[0].':'.$arr[1]);
                     }
-                    if($arr[0] === 'host' && !empty($arr[1])){
+                    /*if($arr[0] === 'host' && !empty($arr[1])){
                         if(isset($custom_tags->$arr[1])) $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
-                    }
+                    }*/
                 }
             }
             $result = array_merge($result,$tags_temp);
         }
+        $result = array_merge($result,$custom_tags);
         $result = array_unique($result);
         sort($result);
 
         return $result;
+    }
+
+    public static function setCustomTags($metrics_in, $host, $uid)
+    {
+        $url = MyApi::TAG_PUT_URL . '/api/host/tag?uid='.$uid.'&host='.$host;
+
+        $agent = MyApi::getHostTagAgent($metrics_in);
+        //$agent = 'host-cf-1,host-cf-2';
+        $data = json_encode([['agent' => $agent]]);
+        $res = MyApi::httpPost($url, $data, true);
+        Log::info('put-host-tag === ' . $res);
+    }
+
+    public static function getCustomTags($uid)
+    {
+        $key = 'search:hosts:'.$uid."*";
+        $tags = Redis::keys($key);
+        $res = [];
+        foreach($tags as $item){
+            $arr = explode(':',$item);
+            $st_arr = explode('=',$arr[3]);
+            array_push($res,$st_arr[0].':'.$st_arr[1]);
+        }
+        return $res;
     }
 
     public static function getMetricByService($slug,$uid,$type)

@@ -49,7 +49,6 @@ class ApiController  extends Controller
 
     public function test(Request $request)
     {
-        MyApi::putHostTags([],'cfeng-4',1);
     }
 
     public function tagJson(Request $request)
