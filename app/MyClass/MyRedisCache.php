@@ -201,4 +201,45 @@ class MyRedisCache
 
         return $result;
     }
+
+    public static function getMetricByService($slug,$uid,$type)
+    {
+        $metric_key = 'search:mts:'.$uid.':'.$slug.'.*';
+        $metrics = Redis::keys($metric_key);
+        $ret = new \stdClass();
+        $ret->code = 0;
+        $ret->message = 'success';
+        $ret->result = [];
+
+        if($type == 'show'){
+            $res = new \stdClass();
+            $x =0;$y=0;$w=3;$h=2;
+            $data = [];
+            foreach($metrics as $item){
+               array_push($data,[null,$x,$y,$w,$h]);
+                if($x >= 9){
+                    $x = 0;
+                    $y += $h;
+                }else{
+                    $x += $w;
+                }
+            }
+            $res->order  = json_encode($data);
+            $ret->result = $res;
+        }
+        if($type == 'chart'){
+            foreach($metrics as $item){
+                $res = new \stdClass();
+                $res->metrics = [];
+                $arr = explode(':',$item);
+                $metric = $arr[3];
+                $m = new \stdClass();
+                $m->metric = $metric;
+                array_push($res->metrics,$m);
+                array_push($ret->result,$res);
+            }
+        }
+
+        return $ret;
+    }
 }

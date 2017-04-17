@@ -103,11 +103,17 @@ class ApiController  extends Controller
     public function showJson(Request $request,$dasbid)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        //$uid = 1;
+        $uid = 1;
         $res_u = MyApi::checkUidError($uid);
         if($res_u->code != 0) response()->json($res_u);
 
-        $ret = Dashboard::findByid($dasbid,$uid);
+        if($request->has('slug')){
+            $slug = $request->slug;
+            $ret = Dashboard::findBySlug($slug,$uid,'show');
+        }else{
+            $ret = Dashboard::findByid($dasbid,$uid);
+        }
+
         return response()->json($ret);
     }
 
@@ -121,21 +127,34 @@ class ApiController  extends Controller
         return response()->json($ret);
     }
 
-    public function chartsJson($dasbid)
+    public function chartsJson(Request $request,$dasbid)
     {
-        $charts = DB::table('charts')->where('dashboard_id',$dasbid)->get();
-        $ret = new \stdClass();
-        $ret->code = 0;
-        $ret->message = "success";
-        foreach($charts as $chart){
-            $chart->meta = json_decode($chart->meta,true);
-            $chart->metrics = json_decode($chart->metrics,true);
-        }
-        $ret->result = $charts;
-        if(empty($ret->result)){
-            Log::info('charts_result ===== ');
-        }
+        $uid = $request->header('X-Consumer-Custom-ID');
+        $uid = 1;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) response()->json($res_u);
 
+        $res = true;
+        if($request->has('slug')) {
+            $slug = $request->slug;
+            $res = DB::table('dashboard')->where('slug', $slug)->first();
+            if($res){
+                $dasbid = $res->id;
+            }
+        }
+        if(!$res){
+            $ret = Dashboard::findBySlug($slug,$uid,'chart');
+        }else{
+            $charts = DB::table('charts')->where('dashboard_id',$dasbid)->get();
+            $ret = new \stdClass();
+            $ret->code = 0;
+            $ret->message = "success";
+            foreach($charts as $chart){
+                $chart->meta = json_decode($chart->meta,true);
+                $chart->metrics = json_decode($chart->metrics,true);
+            }
+            $ret->result = $charts;
+        }
         return response()->json($ret);
     }
 

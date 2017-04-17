@@ -8,6 +8,7 @@
 
 namespace App;
 
+use App\MyClass\MyRedisCache;
 use Illuminate\Database\Eloquent\Model;
 use DB;
 use Log;
@@ -15,6 +16,20 @@ use Log;
 class Dashboard extends Model
 {
     protected $table = "dashboard";
+
+    public static function findBySlug($slug,$uid,$type)
+    {
+        $ret = MyRedisCache::getMetricByService($slug,$uid,$type);
+        return $ret;
+        $res = DB::table('dashboard')->where('slug',$slug)->first();
+        if($res){
+            $dasbid = $res->id;
+            $ret = Dashboard::findByid($dasbid,$uid);
+        }else{
+            $ret = MyRedisCache::getMetricByService($slug,$uid,$type);
+        }
+        return $ret;
+    }
 
     public static function findByid($id,$uid)
     {
