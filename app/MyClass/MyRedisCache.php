@@ -145,6 +145,7 @@ class MyRedisCache
 
         $agent = MyApi::getHostTagAgent($metrics_in);
         //$agent = 'host-cf-1,host-cf-2';
+        if(empty($agent)) return;
         $data = json_encode([['agent' => $agent]]);
         $res = MyApi::httpPost($url, $data, true);
         Log::info('put-host-tag === ' . $res);
@@ -152,13 +153,22 @@ class MyRedisCache
 
     public static function getCustomTags($uid)
     {
-        $key = 'search:hosts:'.$uid."*";
-        $tags = Redis::keys($key);
+        $redis = new \Redis();
+        $redis->connect('172.29.231.177',6379);
+        $redis->auth(123456);
+        $key = 'search:hts:'.$uid.":*";
+        $tags = $redis->keys($key);
+        if(empty($tags)) return [];
+        $pipe = $redis->multi(\Redis::PIPELINE);
+        foreach($tags as $t_key){
+            $pipe->hGetAll($t_key);
+        }
+        $replies = $pipe->exec();
         $res = [];
-        foreach($tags as $item){
-            $arr = explode(':',$item);
-            $st_arr = explode('=',$arr[3]);
-            array_push($res,$st_arr[0].':'.$st_arr[1]);
+        foreach($replies as $item){
+            foreach($item as $tagk => $tagv){
+                array_push($res,$tagk.':'.$tagv);
+            }
         }
         return $res;
     }
