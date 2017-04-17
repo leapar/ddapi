@@ -18,10 +18,13 @@ use Log;
 
 class MyRedisCache
 {
-    private $redis_host = '172.29.231.177';
-    //private $redis_host = '172.29.225.50';
-    private $redis_port = 6379;
-    private $redis_pass = 123456;
+    public static function initRedis()
+    {
+        $redis = new \Redis();
+        $redis->connect('172.29.231.177',6379);
+        $redis->auth(123456);
+        return $redis;
+    }
 
     /**
      * 设置redis 缓存
@@ -53,9 +56,7 @@ class MyRedisCache
      */
     public function metricCache($uid)
     {
-        $redis = new \Redis();
-        $redis->connect($this->redis_host,$this->redis_port);
-        $redis->auth($this->redis_pass);
+        $redis = MyRedisCache::initRedis();
         $metric_key = 'search:metrics:'.$uid.':uid='.$uid;
         $metrics = $redis->hKeys($metric_key);
         if(empty($metrics)) return [];
@@ -99,9 +100,7 @@ class MyRedisCache
 
     public function tagsCache($uid)
     {
-        $redis = new \Redis();
-        $redis->connect($this->redis_host,$this->redis_port);
-        $redis->auth($this->redis_pass);
+        $redis = MyRedisCache::initRedis();
         $metric_key = 'search:metrics:'.$uid.':uid='.$uid;
         $metrics = $redis->hKeys($metric_key);
         if(empty($metrics)) return [];
@@ -153,9 +152,7 @@ class MyRedisCache
 
     public static function getCustomTags($uid)
     {
-        $redis = new \Redis();
-        $redis->connect('172.29.231.177',6379);
-        $redis->auth(123456);
+        $redis = MyRedisCache::initRedis();
         $key = 'search:hts:'.$uid.":*";
         $tags = $redis->keys($key);
         if(empty($tags)) return [];
