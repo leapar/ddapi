@@ -39,9 +39,9 @@ class MetricController extends Controller
             $host = $metrics_in->internalHostname;
             $metrics = isset($metrics_in->metrics) ? $metrics_in->metrics : '';
 
-            if($host == 'cfeng-4'){
+            /*if($host == 'cfeng-4'){
                 Log::info("intake ===> ".json_encode($data));
-            }
+            }*/
             $uid = $request->header('X-Consumer-Custom-ID');
             if(!$uid){
                 Log::info("intake_uid = " . $uid);
