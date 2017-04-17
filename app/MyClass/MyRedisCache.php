@@ -14,6 +14,7 @@ use App\Tag;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use DB;
+use Log;
 
 class MyRedisCache
 {
