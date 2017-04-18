@@ -145,7 +145,7 @@ class MyRedisCache
         $agent = MyApi::getHostTagAgent($metrics_in);
         //$agent = 'host-cf-1,host-cf-2';
         if(empty($agent)) return;
-        $data = json_encode([['agent' => $agent]]);
+        $data = json_encode([['@agent' => $agent]]);
         $res = MyApi::httpPost($url, $data, true);
         Log::info('put-host-tag === ' . $res);
     }

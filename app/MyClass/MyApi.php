@@ -252,7 +252,23 @@ class MyApi
             if ($metric_types) {
                 MyApi::saveMetricTypes($metric_types);
             } else {
-                return [];
+                $data = [
+                    'integration' => null,
+                    'metric_name' => $metric_name,
+                    'description' => null,
+                    'metric_type' => null,
+                    'metric_alias' => null,
+                    'per_unit' => null,
+                    'plural_unit' => null,
+                    'type' => 0,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ];
+                DB::table('metric_types')->insert($data);
+                $item = DB::table('metric_types')->where('metric_name', $metric_name)->first();
+                $item->created_at = strtotime($item->created_at) * 1000;
+                $item->updated_at = strtotime($item->updated_at) * 1000;
+                return $item;
             }
             return $metric_types;
         }
