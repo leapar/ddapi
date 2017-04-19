@@ -55,14 +55,19 @@ class MetricController extends Controller
             $arrPost = array();
             $arrPost = $my_metric->getMetricByOS($arrPost);
 
-            $cpuIdle = isset($metrics_in->cpuIdle) ? $metrics_in->cpuIdle : 0;
+            $cpuUser = isset($metrics_in->cpuUser) ? $metrics_in->cpuUser : 0;
+            $cpuSystem = isset($metrics_in->cpuSystem) ? $metrics_in->cpuSystem : 0;
+            $cpuIdle = $cpuUser + $cpuSystem;
             $disk_total = 0;
             $disk_used = 0;
             if(!empty($metrics)) {
                 foreach($metrics as $metric) {
                     $sub = $my_metric->getMetric($metric);
-                    if($metric[0] == "system.cpu.idle"){
+                    /*if($metric[0] == "system.cpu.idle"){
                         $cpuIdle = $metric[2];
+                    }*/
+                    if($metric[0] == "system.cpu.system" || $metric[0] == "system.cpu.user"){
+                        $cpuIdle += $metric[2];
                     }
                     if($metric[0] == "system.disk.total"){
                         $disk_total += $metric[2];
@@ -140,7 +145,8 @@ class MetricController extends Controller
                 foreach($series as $item) {
                     $metric = $item->metric;
                     $value = $item->points[0][1];
-                    if($metric === "system.cpu.idle"){
+                    //if($metric === "system.cpu.idle"){
+                    if($metric == "system.cpu.system" || $metric == "system.cpu.user"){
                         $cpuIdle += $value;
                         $num++;
                     }
@@ -213,7 +219,8 @@ class MetricController extends Controller
         if(empty($data)){
             $redis_data = [
                 "hostId" => $hostid,
-                "cpu" => 100 - $cpuIdle,
+                //"cpu" => 100 - $cpuIdle,
+                "cpu" => $cpuIdle,
                 "diskutilization" => $disk_total == 0 ? 0 :$disk_used / $disk_total * 100,
                 "disksize" => $disk_total,
                 "hostName" => $host,
@@ -227,7 +234,7 @@ class MetricController extends Controller
         }else{
             $redis_data = [
                 "hostId" => $hostid,
-                "cpu" => 100 - $cpuIdle,
+                "cpu" => $cpuIdle,
                 "diskutilization" => $disk_total == 0 ? 0 :$disk_used / $disk_total * 100,
                 "disksize" => $disk_total,
                 "hostName" => $host,

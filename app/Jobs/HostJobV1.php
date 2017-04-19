@@ -58,11 +58,11 @@ class HostJobV1 extends Job
             $hostname = $this->metrics_in->internalHostname;
             $hostid = md5(md5($this->uid).md5($hostname));
 
-            list($t1, $t2) = explode(' ', microtime());
-            $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+            //list($t1, $t2) = explode(' ', microtime());
+            //$msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
 
             //1 保存host
-            $load15 = "system.load.15";
+           /* $load15 = "system.load.15";
             $redis_data = [
                 "hostId" => $hostid,
                 "cpu" => 100 - $this->cpuIdle,
@@ -85,7 +85,7 @@ class HostJobV1 extends Job
             Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
             $host_process = "PROCESS_".$hostid;
             $process = isset($this->metrics_in->processes) ? json_encode($this->metrics_in->processes->processes) : null;
-            Redis::command('HSET',[$hsname,$host_process,$process]);
+            Redis::command('HSET',[$hsname,$host_process,$process]);*/
 
             $data = [
                 "host_name" => $hostname,
