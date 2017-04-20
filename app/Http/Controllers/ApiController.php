@@ -21,7 +21,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $host_tags = MyApi::getCustomTagsByHost($uid);
 
@@ -56,7 +56,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $url = MyApi::TSDB_URL . '/api/search/uidmeta?query=custom.uid:'.$uid.'&limit=10000';
         $res = \GuzzleHttp\json_decode(MyApi::httpGet($url)); // 自定义tag
@@ -93,7 +93,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = MyApi::normalModeList($uid);
         return response()->json($ret);
@@ -102,12 +102,12 @@ class ApiController  extends Controller
     public function showJson(Request $request,$dasbid)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 1;
+        //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
-        if($request->has('slug')){
-            $slug = $request->slug;
+        if(!is_numeric($dasbid)){
+            $slug = $dasbid;
             $ret = Dashboard::findBySlug($slug,$uid,'show');
         }else{
             $ret = Dashboard::findByid($dasbid,$uid);
@@ -121,7 +121,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
         $ret = MyApi::dashboardsJson($uid,$request);
         return response()->json($ret);
     }
@@ -129,13 +129,13 @@ class ApiController  extends Controller
     public function chartsJson(Request $request,$dasbid)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 1;
+        //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $res = true;
-        if($request->has('slug')) {
-            $slug = $request->slug;
+        if(!is_numeric($dasbid)) {
+            $slug = $dasbid;
             $res = DB::table('dashboard')->where('slug', $slug)->first();
             if($res){
                 $dasbid = $res->id;
@@ -221,7 +221,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
@@ -251,7 +251,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
         $ret = new \stdClass();
         $ret->code = 0;
         $ret->result = [];
@@ -274,7 +274,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = Dashboard::findByid($dasid,$uid);
         if(empty($ret->result)){
@@ -294,7 +294,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
@@ -317,7 +317,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
@@ -343,7 +343,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
@@ -390,7 +390,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
@@ -436,7 +436,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = Metric::findMetricTemplateByid($id,$uid);
         if(!empty($ret->result)){
@@ -450,7 +450,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
@@ -475,7 +475,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;
@@ -496,7 +496,7 @@ class ApiController  extends Controller
         $uid = $request->header('X-Consumer-Custom-ID');
         //$uid = 1;
         $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) response()->json($res_u);
+        if($res_u->code != 0) return response()->json($res_u);
 
         $ret = new \stdClass();
         $ret->code = 0;

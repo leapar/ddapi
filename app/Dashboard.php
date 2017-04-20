@@ -19,8 +19,6 @@ class Dashboard extends Model
 
     public static function findBySlug($slug,$uid,$type)
     {
-        $ret = MyRedisCache::getMetricByService($slug,$uid,$type);
-        return $ret;
         $res = DB::table('dashboard')->where('slug',$slug)->first();
         if($res){
             $dasbid = $res->id;
