@@ -252,8 +252,9 @@ class MyApi
             if ($metric_types) {
                 MyApi::saveMetricTypes($metric_types);
             } else {
+                $integration = explode('.', $metric_name);
                 $data = [
-                    'integration' => null,
+                    'integration' => $integration[0],
                     'metric_name' => $metric_name,
                     'description' => null,
                     'metric_type' => null,
