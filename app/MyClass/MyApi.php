@@ -593,6 +593,7 @@ class MyApi
         $res->name = $request->dashboardName;
         $res->desc = $request->dashboardDesc;
         $res->type = 'user';
+        $res->slug = null;
         $res->user_id = $uid;
         $res->is_able = 1;
         $res->create_time = date("Y-m-d H:i:s");

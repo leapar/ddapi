@@ -19,7 +19,7 @@ class Dashboard extends Model
 
     public static function findBySlug($slug,$uid,$type)
     {
-        $res = DB::table('dashboard')->where('slug',$slug)->first();
+        $res = DB::table('dashboard')->where('type','system')->where('slug',$slug)->first();
         if($res){
             $dasbid = $res->id;
             $ret = Dashboard::findByid($dasbid,$uid);
