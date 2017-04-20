@@ -102,7 +102,7 @@ class ApiController  extends Controller
     public function showJson(Request $request,$dasbid)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        //$uid = 1;
+        //$uid = 20;
         $res_u = MyApi::checkUidError($uid);
         if($res_u->code != 0) return response()->json($res_u);
 
@@ -129,14 +129,14 @@ class ApiController  extends Controller
     public function chartsJson(Request $request,$dasbid)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        //$uid = 1;
+        //$uid = 20;
         $res_u = MyApi::checkUidError($uid);
         if($res_u->code != 0) return response()->json($res_u);
 
         $res = true;
         if(!is_numeric($dasbid)) {
             $slug = $dasbid;
-            $res = DB::table('dashboard')->where('slug', $slug)->first();
+            $res = DB::table('dashboard')->where('type','system')->where('slug', $slug)->first();
             if($res){
                 $dasbid = $res->id;
             }
