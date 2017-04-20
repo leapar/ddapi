@@ -192,6 +192,9 @@ class MyRedisCache
                     $x += $w;
                 }
             }
+            $res->name = $slug;
+            $res->type = 'system';
+            $res->owner = ['id'=>null,'email' => 'test@apmsys.com','name' => '路人甲'];
             $res->order  = json_encode($data);
             $ret->result = $res;
         }
@@ -201,6 +204,7 @@ class MyRedisCache
                 $res->metrics = [];
                 $arr = explode(':',$item);
                 $metric = $arr[3];
+                $res->name = $metric;
                 $m = new \stdClass();
                 $m->metric = $metric;
                 array_push($res->metrics,$m);
