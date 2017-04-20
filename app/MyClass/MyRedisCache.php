@@ -183,8 +183,9 @@ class MyRedisCache
             $res = new \stdClass();
             $x =0;$y=0;$w=3;$h=2;
             $data = [];
-            foreach($metrics as $item){
-               array_push($data,[null,$x,$y,$w,$h]);
+            foreach($metrics as $key => $item){
+                $chartid = $key + 1;
+               array_push($data,[$chartid,$x,$y,$w,$h]);
                 if($x >= 9){
                     $x = 0;
                     $y += $h;
@@ -207,6 +208,7 @@ class MyRedisCache
                 $res->name = $metric;
                 $m = new \stdClass();
                 $m->metric = $metric;
+                $res->type = "timeseries";
                 array_push($res->metrics,$m);
                 array_push($ret->result,$res);
             }
