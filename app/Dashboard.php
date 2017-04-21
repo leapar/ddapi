@@ -31,13 +31,10 @@ class Dashboard extends Model
 
     public static function findByid($id,$uid)
     {
-        Log::info('findByid_uid = ' . $uid);
         $res = DB::table('dashboard')->where('id',$id)->first();
-
         $ret = new \stdClass();
         $ret->code = 0;
         if(empty($res)){
-            Log::info('get_dashboard_id='.$id);
             $ret->message = 'fail';
             $ret->result = [];
             return $ret;
@@ -53,7 +50,6 @@ class Dashboard extends Model
         }else if($res->type == 'system'){
             $res->owner = ['id'=>null,'email' => 'test@apmsys.com','name' => '路人甲'];
         }
-        Log::info('owner = ' . $uid);
         $res->order = !$res->order ? "[]" : $res->order;
         $ret->message = 'success';
         $res->is_installed = $res->is_installed ? true:false;

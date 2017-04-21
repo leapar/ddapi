@@ -7,10 +7,10 @@ use App\Metric;
 use App\MyClass\MyApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Response;
 use DB;
+use Log;
 use Mockery\Exception;
 
 
