@@ -92,7 +92,7 @@ class MetricController extends Controller
                 list($t1, $t2) = explode(' ', microtime());
                 $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
                 $agentVersion = isset($metrics_in->agentVersion) ? $metrics_in->agentVersion : '';
-                $message = json_encode(['host' => $host,'userid' => $uid,'time' => $msec,'agentVersion' => $agentVersion]);
+                $message = json_encode(['host' => $host,'userid' => $uid,'time' => $msec,'version' => $agentVersion]);
                 $item = new MyRabbitmq('agent_start','agent_start',$message);
                 $item->setConnect();
                 if($item->connection->connect()){
@@ -109,8 +109,8 @@ class MetricController extends Controller
             //}
             $res = $my_metric->checktime($hostid.'intake');
             if(!$res) return;
-
-            $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks,null,$metrics_in->agent_checks))->onQueue("metricV1");
+            $agent_checks = isset($metrics_in->agent_checks) ? $metrics_in->agent_checks: null;
+            $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks,null,$agent_checks))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
         }catch(Exception $e){
             Log::error($e->getMessage());
