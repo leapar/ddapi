@@ -164,7 +164,13 @@ class MyRedisCache
         $res = [];
         foreach($replies as $item){
             foreach($item as $tagk => $tagv){
-                array_push($res,$tagk.':'.$tagv);
+                if($tagk == '@agent'){
+                    $tagv_arr = explode(',',$tagv);
+                    foreach($tagv_arr as $v){
+                        array_push($res,$v);
+                    }
+                }
+                //array_push($res,$tagk.':'.$tagv);
             }
         }
         return $res;
@@ -216,4 +222,5 @@ class MyRedisCache
 
         return $ret;
     }
+
 }

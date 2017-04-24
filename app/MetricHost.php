@@ -25,11 +25,12 @@ class MetricHost extends Model
         return DB::table('metric_host')->where('hostid',$hostid)->first();
     }
 
-    public static function saveMetricHostJob($hostid,$service_checks,$check_run)
+    public static function saveMetricHostJob($hostid,$service_checks,$check_run,$agent_checks)
     {
         $data = [];
         !is_null($service_checks) ? $data['service_checks'] = json_encode($service_checks) : '';
         !is_null($check_run) ? $data['check_run'] = json_encode($check_run) : '';
+        !is_null($agent_checks) ? $data['agent_checks'] = json_encode($agent_checks) : '';
 
         $res = MetricHost::findByHostid($hostid);
         if($res){

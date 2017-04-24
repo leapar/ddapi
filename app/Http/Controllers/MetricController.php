@@ -9,6 +9,7 @@ use App\Jobs\MetricJob;
 use App\Jobs\MetricJobV1;
 use App\Jobs\TagJob;
 use App\Jobs\TagJobV1;
+use App\MyClass\MyRabbitmq;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Cache;
@@ -83,9 +84,20 @@ class MetricController extends Controller
                 $my_metric->post2tsdb($arrPost);
                 $arrPost = array();
             }
-            if(isset($metrics_in->gohai) && !empty($metrics_in->gohai)){
+            //if(isset($metrics_in->gohai) && !empty($metrics_in->gohai)){
+            if(isset($metrics_in->systemStats) && !empty($metrics_in->systemStats)){
                 //MyApi::putHostTags($metrics_in,$host,$uid);
                 MyRedisCache::setCustomTags($metrics_in,$host,$uid);
+
+                list($t1, $t2) = explode(' ', microtime());
+                $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+                $agentVersion = isset($metrics_in->agentVersion) ? $metrics_in->agentVersion : '';
+                $message = json_encode(['host' => $host,'userid' => $uid,'time' => $msec,'agentVersion' => $agentVersion]);
+                $item = new MyRabbitmq('agent_start','agent_start',$message);
+                $item->setConnect();
+                if($item->connection->connect()){
+                    $item->setChannel()->setExchange()->setQueue()->publish();
+                }
 
                 $hostjobV1 = (new HostJobV1($metrics_in,$uid,$cpuIdle,$disk_total,$disk_used))->onQueue("hostV1");
                 $this->dispatch($hostjobV1);
@@ -98,7 +110,7 @@ class MetricController extends Controller
             $res = $my_metric->checktime($hostid.'intake');
             if(!$res) return;
 
-            $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks))->onQueue("metricV1");
+            $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks,null,$metrics_in->agent_checks))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
         }catch(Exception $e){
             Log::error($e->getMessage());

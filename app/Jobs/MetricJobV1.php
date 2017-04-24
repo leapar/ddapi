@@ -28,17 +28,19 @@ class MetricJobV1 extends Job
     private $hostid;
     private $service_checks;
     private $check_run;
+    private $agent_checks;
 
     /**
      * Create a new job instance.
      *
      * @return void
      */
-    public function __construct($hostid,$service_checks=null,$check_run=null)
+    public function __construct($hostid,$service_checks=null,$check_run=null,$agent_checks=null)
     {
         $this->hostid = $hostid;
         $this->check_run = $check_run;
         $this->service_checks = $service_checks;
+        $this->agent_checks = $agent_checks;
     }
 
     /**
@@ -55,7 +57,7 @@ class MetricJobV1 extends Job
         set_time_limit(0);
 
         try{
-            MetricHost::saveMetricHostJob($this->hostid,$this->service_checks,$this->check_run);
+            MetricHost::saveMetricHostJob($this->hostid,$this->service_checks,$this->check_run,$this->agent_checks);
         }catch(Exception $e){
             Log::info($e->getMessage());
         }
