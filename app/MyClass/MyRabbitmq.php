@@ -64,8 +64,9 @@ class MyRabbitmq
         $q = new \AMQPQueue($this->channel);
         $q->setName($this->queue);
         $q->setFlags(AMQP_DURABLE); //持久化
-        $q->bind($this->exchange,$this->queue);
         $q->declareQueue();
+
+        $q->bind($this->exchange,$this->queue);
 
         return $this;
     }
