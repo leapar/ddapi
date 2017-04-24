@@ -84,6 +84,7 @@ class MetricController extends Controller
                 $my_metric->post2tsdb($arrPost);
                 $arrPost = array();
             }
+            $agent_checks = isset($metrics_in->agent_checks) ? $metrics_in->agent_checks: null;
             //if(isset($metrics_in->gohai) && !empty($metrics_in->gohai)){
             if(isset($metrics_in->systemStats) && !empty($metrics_in->systemStats)){
                 //MyApi::putHostTags($metrics_in,$host,$uid);
@@ -108,8 +109,8 @@ class MetricController extends Controller
                 $this->hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used);
             //}
             $res = $my_metric->checktime($hostid.'intake');
-            if(!$res) return;
-            $agent_checks = isset($metrics_in->agent_checks) ? $metrics_in->agent_checks: null;
+            if(!$res && is_null($agent_checks)) return;
+
             $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks,null,$agent_checks))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
         }catch(Exception $e){
