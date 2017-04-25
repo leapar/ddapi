@@ -21,7 +21,8 @@ class Metric
     private $tags;
 
     //private $tsdb_url = 'http://172.29.231.177:4242'; //opentsdb服务器
-    private $tsdb_url = 'http://192.168.1.201:4242'; //opentsdb服务器
+    //private $tsdb_url = 'http://192.168.1.201:4242'; //opentsdb服务器
+    private $tsdb_url = 'http://localhost:4242'; //opentsdb服务器
 
     public function __construct($metrics_in=null,$host=null,$uid=null)
     {
