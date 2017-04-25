@@ -17,8 +17,8 @@ use Symfony\Component\Debug\Exception\FatalErrorException;
 class MyApi
 {
     //const  TSDB_URL = "http://172.29.225.121:4242";
-    const  TSDB_URL = "http://172.29.231.177:4242";
-    const  TAG_PUT_URL = "http://172.29.231.177:8101";
+    const  TSDB_URL = "http://192.168.1.201:4242";
+    const  TAG_PUT_URL = "http://192.168.1.201:8101";
 
     public static function getMetricJson($uid)
     {
@@ -565,7 +565,6 @@ class MyApi
             'create_time' => date('Y-m-d H:i:s'),
             'update_time' => date('Y-m-d H:i:s')
         ];
-        //$res = DB::table('charts')->insert($data);
 
         /*   update order   */
         $chart_id = DB::table('charts')->insertGetId($data);

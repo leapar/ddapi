@@ -21,8 +21,8 @@ class MyRedisCache
     public static function initRedis()
     {
         $redis = new \Redis();
-        $redis->connect('172.29.231.177',6379);
-        $redis->auth(123456);
+        $redis->connect('192.168.1.201',6379);
+        //$redis->auth(123456);
         return $redis;
     }
 

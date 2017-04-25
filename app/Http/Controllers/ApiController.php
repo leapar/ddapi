@@ -172,7 +172,7 @@ class ApiController  extends Controller
         }
         $result = MyApi::addJson($res,$request,$dasid);
         $ret->result = $result;
-        return response()->json($res);
+        return response()->json($ret);
     }
 
     public function updateChart(Request $request,$chartid,$dasid)

@@ -26,7 +26,7 @@ class MyRabbitmq
     public function setConnect()
     {
         $conn_args = array(
-            'host' => env('RABBITMQ_HOST','172.29.231.70'),
+            'host' => env('RABBITMQ_HOST','192.168.1.200'),
             'port' => env('RABBITMQ_PORT',5672),
             'login' => env('RABBITMQ_LOGIN','admin'),
             'password' => env('RABBITMQ_PASSWORD','admin'),
