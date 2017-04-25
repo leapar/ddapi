@@ -44,6 +44,7 @@ class MetricController extends Controller
                 Log::info("intake ===> ".json_encode($data));
             }*/
             $uid = $request->header('X-Consumer-Custom-ID');
+            Log::info("intake_uid ===> ".$uid);
             if(!$uid){
                 Log::info("intake_uid = " . $uid);
                 return;
