@@ -211,13 +211,18 @@ class MyRedisCache
                 $chartid = $key + 1;
                 $res = new \stdClass();
                 $res->metrics = [];
+                $res->type = "timeseries";
+                $res->id = $chartid;
                 $arr = explode(':',$item);
                 $metric = $arr[3];
                 $res->name = $metric;
                 $m = new \stdClass();
                 $m->metric = $metric;
-                $res->type = "timeseries";
-                $res->id = $chartid;
+                $m->tags = [];
+                $m->rate = false;
+                $m->aggregator = "avg";
+                $m->by = null;
+                $m->type = "line";
                 array_push($res->metrics,$m);
                 array_push($ret->result,$res);
             }
