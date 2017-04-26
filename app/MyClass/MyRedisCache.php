@@ -172,8 +172,10 @@ class MyRedisCache
                     foreach($tagv_arr as $v){
                         array_push($res,$v);
                     }
+                }else{
+                    array_push($res,$tagk.':'.$tagv);
                 }
-                //array_push($res,$tagk.':'.$tagv);
+
             }
         }
         return $res;
