@@ -20,10 +20,6 @@ class Metric
     private $uid;
     private $tags;
 
-    //private $tsdb_url = 'http://172.29.231.177:4242'; //opentsdb服务器
-    //private $tsdb_url = 'http://192.168.1.201:4242'; //opentsdb服务器
-    private $tsdb_url = 'http://localhost:4242'; //opentsdb服务器
-
     public function __construct($metrics_in=null,$host=null,$uid=null)
     {
         $this->metrics_in = $metrics_in;
@@ -40,7 +36,7 @@ class Metric
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_HEADER, 0);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            curl_setopt($ch, CURLOPT_URL, $this->tsdb_url.'/api/put');//?details
+            curl_setopt($ch, CURLOPT_URL, config('myconfig.tsdb_put_url').'/api/put');//?details
             curl_setopt($ch, CURLOPT_TIMEOUT,120);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
             curl_setopt($ch, CURLOPT_POST, 1);

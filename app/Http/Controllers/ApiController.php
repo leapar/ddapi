@@ -58,7 +58,7 @@ class ApiController  extends Controller
         $res_u = MyApi::checkUidError($uid);
         if($res_u->code != 0) return response()->json($res_u);
 
-        $url = MyApi::TSDB_URL . '/api/search/uidmeta?query=custom.uid:'.$uid.'&limit=10000';
+        $url = config('myconfig.tsdb_search_url') . '/api/search/uidmeta?query=custom.uid:'.$uid.'&limit=10000';
         $res = \GuzzleHttp\json_decode(MyApi::httpGet($url)); // 自定义tag
 
         $m_res = MyApi::getMetricJson($uid);

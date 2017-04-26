@@ -61,9 +61,9 @@ $app->singleton(
 |
 */
 
-$app->middleware([
+/*$app->middleware([
     Vluzrmos\LumenCors\CorsMiddleware::class,
-]);
+]);*/
 
 // $app->routeMiddleware([
 //     'auth' => App\Http\Middleware\Authenticate::class,
@@ -110,6 +110,7 @@ $app->group(['namespace' => 'App\Http\Controllers'], function ($app) {
 
 $app->configure('database');
 $app->configure('queue');
+$app->configure('myconfig');
 ini_set('memory_limit', '256M');
 
 return $app;

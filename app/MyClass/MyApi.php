@@ -16,13 +16,9 @@ use Symfony\Component\Debug\Exception\FatalErrorException;
 
 class MyApi
 {
-    //const  TSDB_URL = "http://172.29.225.121:4242";
-    const  TSDB_URL = "http://192.168.1.201:4242";
-    const  TAG_PUT_URL = "http://192.168.1.201:8101";
-
     public static function getMetricJson($uid)
     {
-        $url = MyApi::TSDB_URL . '/api/search/lookup';
+        $url = config('myconfig.tsdb_search_url') . '/api/search/lookup';
         $data = MyApi::lookupParam($uid);
         $res = MyApi::httpPost($url, $data, true);
 
@@ -31,7 +27,7 @@ class MyApi
 
     public static function getTsuid($host)
     {
-        $url = MyApi::TSDB_URL . '/api/uid/assign?tagv=' . $host;
+        $url = config('myconfig.tsdb_search_url') . '/api/uid/assign?tagv=' . $host;
         $res = MyApi::httpGet($url);
         $data = \GuzzleHttp\json_decode($res);
         if (isset($data->tagv_errors)) {
@@ -47,7 +43,7 @@ class MyApi
 
     public static function getCustom($host)
     {
-        $url = MyApi::TSDB_URL . '/api/search/uidmeta?query=name:' . $host;
+        $url = config('myconfig.tsdb_search_url') . '/api/search/uidmeta?query=name:' . $host;
         $res = MyApi::httpGet($url);
         $data = \GuzzleHttp\json_decode($res);
         $results = isset($data->results) ? $data->results : [];
@@ -61,7 +57,7 @@ class MyApi
     public static function putTags($tsuid, $agent, $custom, $uid, $host)
     {
         $param = MyApi::uidmetaParam($tsuid, $agent, $custom, $uid, $host);
-        $url = MyApi::TSDB_URL . '/api/uid/uidmeta';
+        $url = config('myconfig.tsdb_search_url') . '/api/uid/uidmeta';
         $res = MyApi::httpPost($url, $param, true);
         return $res;
     }
@@ -205,7 +201,7 @@ class MyApi
 
     public static function getCustomTagsByHost($uid)
     {
-        $url = MyApi::TSDB_URL . '/api/search/uidmeta?query=custom.uid:' . $uid . '&limit=10000';
+        $url = config('myconfig.tsdb_search_url') . '/api/search/uidmeta?query=custom.uid:' . $uid . '&limit=10000';
         $res = \GuzzleHttp\json_decode(MyApi::httpGet($url)); // 自定义tag
         $host_tags = new \stdClass();
         foreach ($res->results as $item) {

@@ -20,10 +20,12 @@ class MyRedisCache
 {
     public static function initRedis()
     {
+        $host = env('REDIS_HOST','127.0.0.1');
+        $port = env('REDIS_PORT',6379);
+        $pass = env('REDIS_PASSWORD',null);
         $redis = new \Redis();
-        $redis->connect('192.168.1.201',6379);
-        //$redis->connect('172.29.231.177',6379);
-        //$redis->auth(123456);
+        $redis->connect($host,$port);
+        $redis->auth($pass);
         return $redis;
     }
 
@@ -141,8 +143,8 @@ class MyRedisCache
 
     public static function setCustomTags($metrics_in, $host, $uid)
     {
-        $url = MyApi::TAG_PUT_URL . '/api/host/tag?uid='.$uid.'&host='.$host;
-
+        $url = config('myconfig.tag_put_url') . '/api/host/tag?uid='.$uid.'&host='.$host;
+        Log::info('tag_put_url = ' . $url);
         $agent = MyApi::getHostTagAgent($metrics_in);
         //$agent = 'host-cf-1,host-cf-2';
         if(empty($agent)) return;
