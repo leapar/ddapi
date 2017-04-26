@@ -22,6 +22,7 @@ class MyRedisCache
     {
         $redis = new \Redis();
         $redis->connect('192.168.1.201',6379);
+        //$redis->connect('172.29.231.177',6379);
         //$redis->auth(123456);
         return $redis;
     }
@@ -191,7 +192,7 @@ class MyRedisCache
             $data = [];
             foreach($metrics as $key => $item){
                 $chartid = $key + 1;
-               array_push($data,[$chartid,$x,$y,$w,$h]);
+               array_push($data,["{$chartid}",$x,$y,$w,$h]);
                 if($x >= 9){
                     $x = 0;
                     $y += $h;
@@ -206,7 +207,8 @@ class MyRedisCache
             $ret->result = $res;
         }
         if($type == 'chart'){
-            foreach($metrics as $item){
+            foreach($metrics as $key => $item){
+                $chartid = $key + 1;
                 $res = new \stdClass();
                 $res->metrics = [];
                 $arr = explode(':',$item);
@@ -215,6 +217,7 @@ class MyRedisCache
                 $m = new \stdClass();
                 $m->metric = $metric;
                 $res->type = "timeseries";
+                $res->id = $chartid;
                 array_push($res->metrics,$m);
                 array_push($ret->result,$res);
             }
