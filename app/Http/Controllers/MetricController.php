@@ -88,7 +88,6 @@ class MetricController extends Controller
             $agent_checks = isset($metrics_in->agent_checks) ? $metrics_in->agent_checks: null;
             //if(isset($metrics_in->gohai) && !empty($metrics_in->gohai)){
             if(isset($metrics_in->systemStats) && !empty($metrics_in->systemStats)){
-                //MyApi::putHostTags($metrics_in,$host,$uid);
                 MyRedisCache::setCustomTags($metrics_in,$host,$uid);
 
                 list($t1, $t2) = explode(' ', microtime());
