@@ -564,7 +564,7 @@ class MyApi
 
         /*   update order   */
         $chart_id = DB::table('charts')->insertGetId($data);
-        if($x > 9){ //直接换行追加
+        if($x >= 9){ //直接换行追加
             if($max_h - $init_h > 2){ //半行追加
                 $y = $y + $init_h;
                 $x = $max_x + $max_w;
@@ -690,7 +690,7 @@ class MyApi
             $chart_id = DB::table('charts')->insertGetId($data);
 
             /*   update order   */
-            if($x > 9){ //直接换行追加
+            if($x >= 9){ //直接换行追加
                 if($max_h - $init_h > 2){ //半行追加
                     $new_line_1 += 1;
                     if($new_line_1 >= 2){
