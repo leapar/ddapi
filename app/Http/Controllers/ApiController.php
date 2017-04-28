@@ -126,13 +126,8 @@ class ApiController  extends Controller
         return response()->json($ret);
     }
 
-    public function chartsJson(Request $request,$dasbid)
+    private function getChartsJson($uid,$dasbid)
     {
-        $uid = $request->header('X-Consumer-Custom-ID');
-        //$uid = 20;
-        $res_u = MyApi::checkUidError($uid);
-        if($res_u->code != 0) return response()->json($res_u);
-
         $res = true;
         if(!is_numeric($dasbid)) {
             $slug = $dasbid;
@@ -154,6 +149,18 @@ class ApiController  extends Controller
             }
             $ret->result = $charts;
         }
+
+        return $ret;
+    }
+
+    public function chartsJson(Request $request,$dasbid)
+    {
+        $uid = $request->header('X-Consumer-Custom-ID');
+        //$uid = 20;
+        $res_u = MyApi::checkUidError($uid);
+        if($res_u->code != 0) return response()->json($res_u);
+
+        $ret = $this->getChartsJson($uid,$dasbid);
         return response()->json($ret);
     }
 
@@ -334,7 +341,8 @@ class ApiController  extends Controller
             return response()->json($ret);
         }
         $orders = MyApi::batchAdd($res,$data,$dasbid);
-        return $this->chartsJson($dasbid);
+        $ret = $this->getChartsJson($uid,$dasbid);
+        return response()->json($ret);
     }
 
     //添加模板
