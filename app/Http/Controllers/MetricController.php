@@ -109,7 +109,7 @@ class MetricController extends Controller
                 $this->hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used);
             //}
             $res = $my_metric->checktime($hostid.'intake');
-            if(!$res && is_null($agent_checks)) return;
+            if(!$res) return;
 
             $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks,null,$agent_checks))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
