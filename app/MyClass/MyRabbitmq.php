@@ -57,10 +57,9 @@ class MyRabbitmq
         return $this;
     }
 
-    //创建消费者
+    //创建队列
     public function setQueue()
     {
-        //创建队列
         $q = new \AMQPQueue($this->channel);
         $q->setName($this->queue);
         $q->setFlags(AMQP_DURABLE); //持久化

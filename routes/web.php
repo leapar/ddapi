@@ -20,7 +20,8 @@ $app->get('/', function () use ($app) {
 });
 
 $app->get('/info', function () use ($app) {
-    echo phpinfo();
+    $str = md5(md5(1).md5('SEC001599EC6804'));
+    echo $str;
 });
 
 
@@ -65,5 +66,19 @@ $app->group(['prefix' => 'p1','namespace'=>'App\Http\Controllers'], function () 
 $app->group(['prefix' => 'p0','namespace'=>'App\Http\Controllers'], function () use ($app) {
     $app->get('metrics.json','ApiController@metricsJson');
     $app->get('tags.json','ApiController@tagJson');
+});
+
+$app->group(['prefix' => 'snmp/v1','namespace'=>'App\Http\Controllers'], function () use ($app) {
+    $app->post('device','SnmpController@device');
+    $app->post('deviceos','SnmpController@deviceos');
+    $app->post('ports','SnmpController@ports');
+    $app->post('ports_stack','SnmpController@portsStack');
+    $app->post('ipv4_networks','SnmpController@ipv4NetWorks');
+    $app->post('ipv4_addresses','SnmpController@ipv4Address');
+    $app->post('ipv4_mac','SnmpController@ipv4Mac');
+    $app->post('ipv6_networks','SnmpController@ipv6NetWorks');
+    $app->post('ipv6_addresses','SnmpController@ipv6Address');
+    //拓扑数据
+    $app->get('port_top','SnmpController@portTop');
 });
 

@@ -564,7 +564,7 @@ class MyApi
 
         /*   update order   */
         $chart_id = DB::table('charts')->insertGetId($data);
-        if($x >= 9){ //直接换行追加
+        if($x > 9){ //直接换行追加
             if($max_h - $init_h > 2){ //半行追加
                 $y = $y + $init_h;
                 $x = $max_x + $max_w;
@@ -691,7 +691,7 @@ class MyApi
 
             /*   update order   */
             if($x >= 9){ //直接换行追加
-                if($max_h - $init_h > 2){ //半行追加
+                if($max_h - $init_h >= 2){ //半行追加
                     $new_line_1 += 1;
                     if($new_line_1 >= 2){
                         $y = $y + $h;
@@ -720,5 +720,90 @@ class MyApi
         DB::table('dashboard')->where('id',$dasbid)->update(['order' => json_encode($orders)]);
 
         return $orders;
+    }
+
+    /*
+     * 获取port top数据
+     */
+    public static function portTopData($uid)
+    {
+        $lists = DB::table('ipv4_mac')
+            ->where('userid',$uid)
+            ->whereNotIn('mac_address',['000000000000','ffffffffffff'])
+            ->orderBy('device_id','asc')
+            ->get();
+        $devices = DB::table('host')
+            ->where('userid',$uid)
+            ->select(DB::raw('host_name as local_sysName'),DB::raw('ptype as local_os'),DB::raw('host.ip as local_hostname'),'device_id')
+            ->orderBy('device_id','asc')
+            ->get();
+        $device_ids = [];
+        $device_ips = [];
+        $device_host = [];
+        $mac_ips = [];
+        $mac_host = [];
+        $os_arr = ['windows','linux'];
+        $ret = new \stdClass();
+        $ret->nodes = [];
+        $ret->edges = [];
+        $id = 0;
+        foreach($devices as $item){
+            if(in_array($item->local_os,$os_arr)) continue;
+            $id ++;
+            $stemp = new \stdClass();
+            $stemp->id = $id;
+            $stemp->label = $item->local_hostname;
+            $stemp->value = $item->device_id;
+            $stemp->title = $item->local_sysName;
+            $stemp->shape = 'circle';
+            $stemp->group = $id;
+            array_push($ret->nodes,$stemp);
+
+            $device_ids[$item->device_id] = $id;
+            array_push($device_ips,$item->local_hostname);
+            $device_host[$item->local_hostname] = $id;
+        }
+        foreach($lists as $item){
+            if(!isset($device_ids[$item->device_id])) continue;
+            $local_id = $device_ids[$item->device_id];
+            if(in_array($item->ipv4_address,$device_ips)){
+                $to = $device_host[$item->ipv4_address];
+                $stemp2 = new \stdClass();
+                $stemp2->from = $local_id;
+                $stemp2->to = $to;
+                $stemp2->arrows = 'to';
+                $stemp2->label = $item->port_id;
+                array_push($ret->edges,$stemp2);
+            }else{
+                if(in_array($item->ipv4_address,$mac_ips)){
+                    $to = $mac_host[$item->ipv4_address];
+                    $stemp2 = new \stdClass();
+                    $stemp2->from = $local_id;
+                    $stemp2->to = $to;
+                    $stemp2->arrows = 'to';
+                    $stemp2->label = $item->port_id;
+                    array_push($ret->edges,$stemp2);
+                }else{
+                    $id++;
+                    $stemp = new \stdClass();
+                    $stemp->id = $id;
+                    $stemp->label = $item->ipv4_address;
+                    $stemp->group = $local_id;
+                    //$stemp->title = $item->ipv4_address;
+                    array_push($ret->nodes,$stemp);
+
+                    $stemp2 = new \stdClass();
+                    $stemp2->from = $local_id;
+                    $stemp2->to = $id;
+                    $stemp2->arrows = 'to';
+                    $stemp2->label = $item->port_id;
+                    array_push($ret->edges,$stemp2);
+
+                    array_push($mac_ips,$item->ipv4_address);
+                    $mac_host[$item->ipv4_address] = $id;
+                }
+            }
+        }
+        return $ret;
     }
 }

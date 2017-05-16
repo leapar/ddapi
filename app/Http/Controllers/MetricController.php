@@ -222,13 +222,16 @@ class MetricController extends Controller
 
     private function hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used)
     {
+        $expire = 3*24*3600;
         $hostid = md5(md5($uid).md5($host));
         list($t1, $t2) = explode(' ', microtime());
         $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
-        $hsname = "HOST_DATA_".$uid;
+        //$hsname = "HOST_DATA_".$uid;
+        $hsname = "HOST_DATA_".$uid."_".$host;
         $load15 = "system.load.15";
         //保存数据到redis
-        $data = json_decode(Redis::command("HGET",[$hsname,$hostid]),true);
+        //$data = json_decode(Redis::command("HGET",[$hsname,$hostid]),true);
+        $data = json_decode(Redis::command('GET', [$hsname]),true);
         if(empty($data)){
             $redis_data = [
                 "hostId" => $hostid,
@@ -266,12 +269,17 @@ class MetricController extends Controller
         if(isset($metrics_in->os)) $redis_data['ptype'] = $metrics_in->os;
         if(isset($metrics_in->uuid)) $redis_data['uuid'] = $metrics_in->uuid;
 
-        Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
+        //Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
+        Redis::command('SET',[$hsname,json_encode($redis_data)]);
+        Redis::command('EXPIRE',[$hsname,$expire]);
 
         if(isset($metrics_in->processes)){
-            $host_process = "PROCESS_".$hostid;
+            //$host_process = "PROCESS_".$hostid;
+            $host_process = "HOST_PROCESS_".$uid."_".$host;
             $process = json_encode($metrics_in->processes->processes);
-            Redis::command('HSET',[$hsname,$host_process,$process]);
+            //Redis::command('HSET',[$hsname,$host_process,$process]);
+            Redis::command('SET',[$host_process,$process]);
+            Redis::command('EXPIRE',[$host_process,$expire]);
         }
 
     }
