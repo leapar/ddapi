@@ -723,6 +723,11 @@ class MyApi
         return $orders;
     }
 
+    /** device 数据存redis
+     * @param $host
+     * @param $uid
+     * @param $data
+     */
     public static function recevieDataPutRedis($host,$uid,$data)
     {
         $expire = 3*24*3600;
