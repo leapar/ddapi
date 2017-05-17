@@ -38,11 +38,12 @@ class SnmpController extends Controller
         $device_id= $data->device_id;
         $ptype= $data->os;
         $hostid = md5(md5($uid).md5($host));
-
-        $res = DB::table('host')->where('id',$hostid)->update(['host_name' => $host,'ip' => $ip,'device_id'=>$device_id,'ptype'=>$ptype]);
-        if(!$res){
-            DB::table('host')->insert(['id'=>$hostid,'host_name' => $host,'ip' => $ip,'device_id'=>$device_id,'ptype'=>$ptype,'userid' => $uid]);
+        $res = DB::table('host')->where('id',$hostid)->where('userid',$uid)->first();
+        if(empty($res)){
+            DB::table('host')->insert(['id'=>$hostid,'host_name' => $host,'ip' => $ip,'device_id'=>$device_id,'ptype'=>$ptype,'userid' => $uid,'update_time'=>date('Y-m-d H:i:s'),'createtime' => date("Y-m-d H:i:s")]);
             DB::table('host_user')->insert(['userid'=>$uid,'hostid'=>$hostid]);
+        }else{
+            DB::table('host')->where('id',$hostid)->where('userid',$uid)->update(['host_name' => $host,'ip' => $ip,'device_id'=>$device_id,'ptype'=>$ptype,'update_time'=>date('Y-m-d H:i:s')]);
         }
 
         MyApi::recevieDataPutRedis($host,$uid,$data);
@@ -66,7 +67,7 @@ class SnmpController extends Controller
         $device_id= $request->device_id;
         $logo= $data->logo;
         $ptype= $data->os;
-        $res = $res = DB::table('host')->where('userid',$uid)->where('device_id',$device_id)->update(['ptype'=>$ptype,'logo'=>$logo]);
+        DB::table('host')->where('userid',$uid)->where('device_id',$device_id)->update(['ptype'=>$ptype,'logo'=>$logo]);
         return $this->returnJson(200,'success');
     }
 

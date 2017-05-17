@@ -13,6 +13,7 @@ use Log;
 use DB;
 use Mockery\CountValidator\Exception;
 use Symfony\Component\Debug\Exception\FatalErrorException;
+use Illuminate\Support\Facades\Redis;
 
 class MyApi
 {
