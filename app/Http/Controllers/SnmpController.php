@@ -30,6 +30,9 @@ class SnmpController extends Controller
         if(empty($data)){
             return $this->returnJson(404,'未能获取参数');
         }
+        if(!isset($data->sysName) || !isset($data->hostname) || !isset($data->device_id) || !isset($data->os)){
+            return $this->returnJson(500,'参数错误');
+        }
         $host = $data->sysName;
         $ip = $data->hostname;
         $device_id= $data->device_id;
@@ -41,6 +44,8 @@ class SnmpController extends Controller
             DB::table('host')->insert(['id'=>$hostid,'host_name' => $host,'ip' => $ip,'device_id'=>$device_id,'ptype'=>$ptype,'userid' => $uid]);
             DB::table('host_user')->insert(['userid'=>$uid,'hostid'=>$hostid]);
         }
+
+        MyApi::recevieDataPutRedis($host,$uid,$data);
         return $this->returnJson(200,'success');
     }
 

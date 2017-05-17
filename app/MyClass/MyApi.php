@@ -722,6 +722,30 @@ class MyApi
         return $orders;
     }
 
+    public static function recevieDataPutRedis($host,$uid,$data)
+    {
+        $expire = 3*24*3600;
+        $hostid = md5(md5($uid).md5($host));
+        list($t1, $t2) = explode(' ', microtime());
+        $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+        //$hsname = "HOST_DATA_".$uid;
+        $hsname = "HOST_DATA_".$uid."_".$host;
+
+        $redis_data = [
+            "hostId" => $hostid,
+            "hostName" => $host,
+            "updatetime" => $msec,
+            "colletcionstamp" => time(),
+            "ptype" => $data->os,
+            "ip" => $data->hostname,
+            "device_id" => $data->device_id
+        ];
+
+        //Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
+        Redis::command('SET',[$hsname,json_encode($redis_data)]);
+        Redis::command('EXPIRE',[$hsname,$expire]);
+
+    }
     /*
      * 获取port top数据
      */
