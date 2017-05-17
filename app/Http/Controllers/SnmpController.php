@@ -22,10 +22,10 @@ class SnmpController extends Controller
     public function device(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
+        Log::info("device_uid = " . $uid);
         $data = json_decode($request->getContent());
         if(empty($data)){
             return $this->returnJson(404,'未能获取参数');
@@ -47,10 +47,10 @@ class SnmpController extends Controller
     public function deviceos(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
+        Log::info("deviceos_uid = " . $uid);
         if(!$request->has('device_id')){
             return $this->returnJson(404,'未知device');
         }
@@ -68,10 +68,10 @@ class SnmpController extends Controller
     public function ports(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
+        Log::info("ports_uid = " . $uid);
         if(!$request->has('device_id')){
             return $this->returnJson(404,'未知device');
         }
@@ -108,10 +108,10 @@ class SnmpController extends Controller
     public function portsStack(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
+        Log::info("portsStack_uid = " . $uid);
         if(!$request->has('device_id')){
             return $this->returnJson(404,'未知device');
         }
@@ -141,10 +141,10 @@ class SnmpController extends Controller
     public function ipv4NetWorks(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
+        Log::info("ipv4NetWorks_uid = " . $uid);
         if(!$request->has('device_id')){
             return $this->returnJson(404,'未知device');
         }
@@ -174,10 +174,10 @@ class SnmpController extends Controller
     public function ipv4Address(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
+        Log::info("ipv4Address_uid = " . $uid);
         if(!$request->has('device_id')){
             return $this->returnJson(404,'未知device');
         }
@@ -210,10 +210,10 @@ class SnmpController extends Controller
     public function ipv6NetWorks(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
+        Log::info("ipv6NetWorks_uid = " . $uid);
         if(!$request->has('device_id')){
             return $this->returnJson(404,'未知device');
         }
@@ -243,10 +243,10 @@ class SnmpController extends Controller
     public function ipv6Address(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
+        Log::info("ipv6Address_uid = " . $uid);
         if(!$request->has('device_id')){
             return $this->returnJson(404,'未知device');
         }
@@ -281,10 +281,10 @@ class SnmpController extends Controller
     public function ipv4Mac(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
+        Log::info("ipv4Mac_uid = " . $uid);
         if(!$request->has('device_id')){
             return $this->returnJson(404,'未知device');
         }
@@ -316,7 +316,6 @@ class SnmpController extends Controller
     public function portTop(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
-        $uid = 20;
         if(!$uid){
             return $this->returnJson(404,'未知用户');
         }
