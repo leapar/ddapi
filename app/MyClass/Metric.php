@@ -417,6 +417,7 @@ class Metric
             }
             if(isset($item->tags)) {
                 foreach($item->tags as $value) {
+                    if(!is_string($value)) continue;
                     $tmps = explode(":",$value);
                     if(count($tmps) == 2 && $num < 6) {
                         $tgk = $tmps[0];
