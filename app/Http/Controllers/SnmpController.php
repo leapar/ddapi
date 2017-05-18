@@ -45,7 +45,7 @@ class SnmpController extends Controller
             return $this->returnJson(500,'参数错误');
         }
         Log::info("device_uid = " . $uid);
-        $host = $data->sysName;
+        $host = str_replace(" ","",$data->sysName);
         $ip = $data->hostname;
         $device_id= $data->device_id;
         $ptype= $data->os;
