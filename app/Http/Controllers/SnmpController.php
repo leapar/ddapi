@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\MyClass\Metric;
 use App\MyClass\MyApi;
 use Illuminate\Http\Request;
 use DB;
@@ -362,5 +363,32 @@ class SnmpController extends Controller
         }
         $lists = MyApi::portTopData($uid);
         return response()->json($lists);
+    }
+
+    public function metrics(Request $request)
+    {
+        $uid = $request->header('X-Consumer-Custom-ID');
+        if(!$uid){
+            return $this->returnJson(404,'未知用户');
+        }
+        if(!$request->has('device_id')){
+            return $this->returnJson(404,'未知device');
+        }
+        $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)->first();
+        $data = $this->getInput($request);
+        if(empty($data) || empty($res)){
+            Log::info("metrics_uid = 未能获取参数" . $uid);
+            return $this->returnJson(404,'未能获取参数');
+        }
+        Log::info('snmp_metric = ' . json_encode($data));
+        $host = $res->host_name;
+        $arrPost = array();
+        $metric = new Metric($data,$host,$uid);
+        $arrPost = $metric->snmpMetric($arrPost);
+
+        if(count($arrPost) > 0) {
+            $metric->post2tsdb($arrPost);
+            $arrPost = array();
+        }
     }
 }

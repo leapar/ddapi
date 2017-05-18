@@ -80,5 +80,7 @@ $app->group(['prefix' => 'snmp/v1','namespace'=>'App\Http\Controllers'], functio
     $app->post('ipv6_addresses','SnmpController@ipv6Address');
     //拓扑数据
     $app->get('port_top','SnmpController@portTop');
+    //指标
+    $app->post('metrics','SnmpController@metrics');
 });
 

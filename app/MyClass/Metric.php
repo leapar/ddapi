@@ -97,6 +97,9 @@ class Metric
         return $sub;
     }
 
+    /**
+     * 已经不使用待丢弃
+     */
     private function setTags($metric)
     {
         $sub = new \stdClass();
@@ -311,6 +314,9 @@ class Metric
         return $arrPost;
     }
 
+    /**
+     * 已经不使用待丢弃
+     */
     private function setSeriseTag($item)
     {
         $sub = new \stdClass();
@@ -338,6 +344,9 @@ class Metric
         //array_push($this->tags,$sub);
     }
 
+    /**
+     * 已经不使用待丢弃
+     */
     public function setHostTag()
     {
         $host_tags = 'host-tags';
@@ -361,6 +370,9 @@ class Metric
         }
     }
 
+    /**
+     * 已经不使用待丢弃
+     */
     public function getTags()
     {
         return $this->tags;
@@ -383,6 +395,41 @@ class Metric
             return true;
         }
 
+    }
+
+    /**
+     * snmp 指标
+     */
+    public function snmpMetric($arrPost)
+    {
+        foreach($this->metrics_in as $item) {
+            $sub = new \stdClass();
+            $sub->metric = $item->metric;
+            $sub->timestamp = $item->timestamp;
+            $sub->value = $item->value;
+            $sub->tags = new \stdClass();//$metric[3];
+            $sub->tags->host = $this->host;
+            $sub->tags->uid = $this->uid;
+            $num = 2;
+            if (isset($item->device_name) && !empty($item->device_name)) {
+                $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u", "", $item->device_name);
+                $num++;
+            }
+            if(isset($item->tags)) {
+                foreach($item->tags as $value) {
+                    $tmps = explode(":",$value);
+                    if(count($tmps) == 2 && $num < 6) {
+                        $tgk = $tmps[0];
+                        $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
+                        $num++;
+                    }
+                }
+            }
+            array_push($arrPost, $sub);
+
+            $arrPost = $this->checkarrPost($arrPost);
+        }
+        return $arrPost;
     }
 
 }
