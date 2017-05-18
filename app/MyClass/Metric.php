@@ -73,7 +73,7 @@ class Metric
         $sub->tags->uid = $this->uid;//1;//$metrics_in->uuid;
         if(isset($tag->device_name) && !empty($tag->device_name)) {
             $num ++;
-            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
+            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
         }
 
         if(isset($tag->tags)) {
@@ -81,13 +81,13 @@ class Metric
                 $tmps = explode(":",$value);
                 if(count($tmps) == 2 && $num < 6){
                     $tgk = $tmps[0];
-                    $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
+                    $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
                     $num ++;
                 }
                 /*if(count($tmps) == 2) {
                     //	Log::info("value===".$tmps[1]);
                     if($tmps[0] == "instance"){
-                        $sub->tags->instance = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
+                        $sub->tags->instance = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
                     }
                 }*/
             }
@@ -111,7 +111,7 @@ class Metric
         $sub->tags->host = $this->host;
         $sub->tags->uid = $this->uid;//1;//$metrics_in->uuid;
         if(isset($tag->device_name) && !empty($tag->device_name)) {
-            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
+            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
         }
         if(isset($tag->tags)) {
             foreach($tag->tags as $value) {
@@ -119,7 +119,7 @@ class Metric
                 if(count($tmps) == 2) {
                     //	Log::info("value===".$tmps[1]);
                     //	Log::info("valuevalue===".str_replace(array("{","}"), "_", $tmps[1]));
-                    $sub->tags->$tmps[0] = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
+                    $sub->tags->$tmps[0] = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
                 } else {
                     $sub->tags->$tmps[0] = "NULL";//$sub->tags->$tmps[0];
                 }
@@ -292,7 +292,7 @@ class Metric
             $sub->tags->host = $item->host;
             $sub->tags->uid = $this->uid;
             if (isset($item->device_name) && !empty($item->device_name)) {
-                $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u", "", $item->device_name);
+                $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u", "", $item->device_name);
             }
             if(isset($item->tags)) {
                 foreach($item->tags as $value) {
@@ -301,7 +301,7 @@ class Metric
                     if(count($tmps) == 2) {
                         //	Log::info("value===".$tmps[1]);
                         if($tmps[0] == "instance"){
-                            $sub->tags->instance = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
+                            $sub->tags->instance = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
                         }
                     }
                 }
@@ -327,7 +327,7 @@ class Metric
         $sub->tags->host = $item->host;
         $sub->tags->uid = $this->uid;
         if(isset($item->device_name) && !empty($item->device_name)) {
-            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$item->device_name);
+            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$item->device_name);
         }
         if(isset($item->tags)) {
             foreach($item->tags as $value) {
@@ -335,7 +335,7 @@ class Metric
 
                 if(count($tmps) == 2) {
                     //	Log::info("value===".$tmps[1]);
-                    $sub->tags->$tmps[0] = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
+                    $sub->tags->$tmps[0] = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
                 } else {
                     $sub->tags->$tmps[0] = "NULL";//$sub->tags->$tmps[0];
                 }
@@ -412,7 +412,7 @@ class Metric
             $sub->tags->uid = $this->uid;
             $num = 2;
             if (isset($item->device_name) && !empty($item->device_name)) {
-                $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u", "", $item->device_name);
+                $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u", "", $item->device_name);
                 $num++;
             }
             if(isset($item->tags)) {
@@ -421,7 +421,7 @@ class Metric
                     $tmps = explode(":",$value);
                     if(count($tmps) == 2 && $num < 6) {
                         $tgk = $tmps[0];
-                        $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\-\/]/u","",$tmps[1]);
+                        $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
                         $num++;
                     }
                 }
