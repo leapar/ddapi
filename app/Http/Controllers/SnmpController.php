@@ -377,7 +377,7 @@ class SnmpController extends Controller
 
         $data = $this->getInput($request);
         if(empty($data)){
-            Log::info("metrics_uid = 未能获取参数" . $uid);
+            Log::info("metrics_uid = 未能获取参数" . $uid . " | device_id = " . $request->device_id);
             return $this->returnJson(404,'未能获取参数');
         }
         $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)->first();
