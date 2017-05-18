@@ -374,11 +374,16 @@ class SnmpController extends Controller
         if(!$request->has('device_id')){
             return $this->returnJson(404,'未知device');
         }
-        $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)->first();
+
         $data = $this->getInput($request);
-        if(empty($data) || empty($res)){
+        if(empty($data)){
             Log::info("metrics_uid = 未能获取参数" . $uid);
             return $this->returnJson(404,'未能获取参数');
+        }
+        $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)->first();
+        if(empty($res)){
+            Log::info("metrics = 未找到主机 | UID = " . $uid . " | device_id = " . $request->device_id);
+            return $this->returnJson(404,'未找到主机');
         }
         Log::info('snmp_metric = ' . json_encode($data));
         $host = $res->host_name;
