@@ -85,12 +85,12 @@ class MyRedisCache
                     if($arr[0] != "uid"){
                         array_push($tags_temp,$arr[0].':'.$arr[1]);
                     }
-                   /* if($arr[0] === 'host' && !empty($arr[1])){
+                    if($arr[0] === 'host' && !empty($arr[1])){
                         if(isset($custom_tags->$arr[1])) $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
-                    }*/
+                    }
                 }
             }
-            $tags_temp = array_merge($tags_temp,$custom_tags);
+            //$tags_temp = array_merge($tags_temp,$custom_tags);
             $tags_temp = array_unique($tags_temp);
             sort($tags_temp);
             $temp->tags = $tags_temp;
@@ -127,14 +127,14 @@ class MyRedisCache
                     if($arr[0] != "uid"){
                         array_push($tags_temp,$arr[0].':'.$arr[1]);
                     }
-                    /*if($arr[0] === 'host' && !empty($arr[1])){
+                    if($arr[0] === 'host' && !empty($arr[1])){
                         if(isset($custom_tags->$arr[1])) $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
-                    }*/
+                    }
                 }
             }
             $result = array_merge($result,$tags_temp);
         }
-        $result = array_merge($result,$custom_tags);
+        //$result = array_merge($result,$custom_tags);
         $result = array_unique($result);
         sort($result);
 
@@ -160,20 +160,26 @@ class MyRedisCache
         $tags = $redis->keys($key);
         if(empty($tags)) return [];
         $pipe = $redis->multi(\Redis::PIPELINE);
-        foreach($tags as $t_key){
+        $hosts = [];
+        foreach($tags as $key => $t_key){
+            $arr = explode(':',$t_key);
+            $hosts[$key] = end($arr);
             $pipe->hGetAll($t_key);
         }
         $replies = $pipe->exec();
-        $res = [];
-        foreach($replies as $item){
+        //$res = [];
+        $res = new \stdClass();
+        foreach($replies as $key => $item){
+            $host = $hosts[$key];
+            $res->$host = [];
             foreach($item as $tagk => $tagv){
                 if($tagk == '@agent'){
                     $tagv_arr = explode(',',$tagv);
                     foreach($tagv_arr as $v){
-                        array_push($res,$v);
+                        array_push($res->$host,$v);
                     }
                 }else{
-                    array_push($res,$tagk.':'.$tagv);
+                    array_push($res->$host,$tagk.':'.$tagv);
                 }
 
             }
@@ -196,7 +202,7 @@ class MyRedisCache
             $data = [];
             foreach($metrics as $key => $item){
                 $chartid = $key + 1;
-               array_push($data,["{$chartid}",$x,$y,$w,$h]);
+                array_push($data,["{$chartid}",$x,$y,$w,$h]);
                 if($x >= 9){
                     $x = 0;
                     $y += $h;
