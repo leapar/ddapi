@@ -79,7 +79,7 @@ class Metric
         if(isset($tag->tags)) {
             foreach($tag->tags as $value) {
                 $tmps = explode(":",$value);
-                if(count($tmps) == 2 && $num < 6){
+                if(count($tmps) == 2 && $num < 6 && !empty($tmps[0]) && !empty($tmps[1])){
                     $tgk = $tmps[0];
                     $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
                     $num ++;
@@ -419,7 +419,7 @@ class Metric
                 foreach($item->tags as $value) {
                     if(!is_string($value)) continue;
                     $tmps = explode(":",$value);
-                    if(count($tmps) == 2 && $num < 6) {
+                    if(count($tmps) == 2 && $num < 6 && !empty($tmps[0]) && !empty($tmps[1])) {
                         $tgk = $tmps[0];
                         $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
                         $num++;
