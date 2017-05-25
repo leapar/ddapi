@@ -96,15 +96,15 @@ class HostJobV1 extends Job
 
             if(isset($this->metrics_in->gohai) && !empty($this->metrics_in->gohai)){
                 $data["gohai"] = json_encode($this->metrics_in->gohai);
-                $host = Host::findByHostid($hostid);
-                if($host){
-                    DB::table('host')->where('id',$hostid)->update($data);
-                }else{
-                    $data['createtime'] = date("Y-m-d H:i:s");
-                    $data['id'] = $hostid;
-                    DB::table('host')->insert($data);
-                    DB::table('host_user')->insert(['userid'=>$this->uid,'hostid'=>$hostid]);
-                }
+            }
+            $host = Host::findByHostid($hostid);
+            if($host){
+                DB::table('host')->where('id',$hostid)->update($data);
+            }else{
+                $data['createtime'] = date("Y-m-d H:i:s");
+                $data['id'] = $hostid;
+                DB::table('host')->insert($data);
+                DB::table('host_user')->insert(['userid'=>$this->uid,'hostid'=>$hostid]);
             }
 
         }catch(Exception $e){
