@@ -55,6 +55,15 @@ class MetricController extends Controller
 
             //1，保存 opentsdb
             $arrPost = array();
+            $sub = new \stdClass();
+            $sub->metric = "paasinsight.agent.up";
+            $sub->timestamp = floatval($metrics_in->collection_timestamp);
+            $sub->value = 1;
+            $sub->tags = new \stdClass();//$metric[3];
+            $sub->tags->host = $host;
+            $sub->tags->uid = $uid;//1;//$metrics_in->uuid;
+            array_push( $arrPost ,$sub);
+
             $arrPost = $my_metric->getMetricByOS($arrPost);
 
             $cpuUser = isset($metrics_in->cpuUser) ? $metrics_in->cpuUser : 0;
