@@ -48,11 +48,12 @@ class SnmpController extends Controller
         Log::info("devicePoller_data = " . json_encode($data));
         $device_id = $request->device_id;
         $data = [
-            'version' => $data->version,
-            'features' => $data->features,
-            'hardware' => $data->hardware,
-            'serial' => $data->serial,
-            'sysObjectID' => $data->sysObjectID,
+            'version' => isset($data->version) ? $data->version : '',
+            'features' => isset($data->features) ? $data->features : '',
+            'hardware' => isset($data->hardware) ? $data->hardware : '',
+            'serial' => isset($data->serial) ? $data->serial : '',
+            'sysObjectID' => isset($data->sysObjectID) ? $data->sysObjectID : '',
+            'deviceType' => isset($data->deviceType) ? $data->deviceType : '',
             'update_time'=>date('Y-m-d H:i:s')
         ];
 
@@ -455,7 +456,7 @@ class SnmpController extends Controller
         }
 
         $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)
-            ->select('ip','host_name','ptype','logo','type_flag','version','features','hardware','serial','sysObjectID')
+            ->select('ip','host_name','ptype','logo','type_flag','version','features','hardware','serial','sysObjectID','deviceType')
             ->first();
 
         return $this->returnJson(200,'success',$res);
