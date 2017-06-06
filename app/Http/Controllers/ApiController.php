@@ -108,7 +108,11 @@ class ApiController  extends Controller
 
         if(!is_numeric($dasbid)){
             $slug = $dasbid;
-            $ret = Dashboard::findBySlug($slug,$uid,'show');
+            /*if($slug == "system"){
+                $ret = Dashboard::findBySystem($slug);//预埋的dashboard
+            }else{*/
+                $ret = Dashboard::findBySlug($slug,$uid,'show');
+            //}
         }else{
             $ret = Dashboard::findByid($dasbid,$uid);
         }

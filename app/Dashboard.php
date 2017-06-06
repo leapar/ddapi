@@ -29,6 +29,31 @@ class Dashboard extends Model
         return $ret;
     }
 
+    public static function findBySystem($slug)
+    {
+        $res = DB::table('dashboard')->where('type','show-system')->where('slug',$slug)->first();
+
+        $ret = new \stdClass();
+        $ret->message = 'success';
+        $ret->code = 0;
+
+        if(empty($res)){
+            $ret->message = '未定义仪表盘';
+            $ret->result = [];
+            return $ret;
+        }
+
+        $res->owner = ['id'=>null,'email' => 'test@apmsys.com','name' => '路人甲'];
+        $res->order = !$res->order ? "[]" : $res->order;
+        $res->is_installed = $res->is_installed ? true:false;
+        $res->is_favorite = $res->is_favorite ? true:false;
+        $res->update_time = strtotime($res->update_time) * 1000;
+        $res->create_time = strtotime($res->create_time) * 1000;
+        $ret->result = $res;
+
+        return $ret;
+    }
+
     public static function findByid($id,$uid)
     {
         $res = DB::table('dashboard')->where('id',$id)->first();

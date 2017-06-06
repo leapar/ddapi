@@ -29,10 +29,42 @@ class SnmpController extends Controller
         return json_decode($data);
     }
 
+    public function devicePoller(Request $request)
+    {
+        $uid = $request->header('X-Consumer-Custom-ID');
+        if(!$uid){
+            Log::info("devicePoller = 未知用户");
+            return $this->returnJson(404,'未知用户');
+        }
+        $data = $this->getInput($request);
+        if(empty($data)){
+            Log::info("devicePoller = 未能获取参数" . $uid);
+            return $this->returnJson(404,'未能获取参数');
+        }
+        if(!$request->has('device_id')){
+            Log::info("devicePoller = 未知device" . $uid);
+            return $this->returnJson(404,'未知device');
+        }
+        Log::info("devicePoller_data = " . json_encode($data));
+        $device_id = $request->device_id;
+        $data = [
+            'version' => $data->version,
+            'features' => $data->features,
+            'hardware' => $data->hardware,
+            'serial' => $data->serial,
+            'sysObjectID' => $data->sysObjectID,
+            'update_time'=>date('Y-m-d H:i:s')
+        ];
+
+        DB::table('host')->where('userid',$uid)->where('device_id',$device_id)->update($data);
+        return $this->returnJson(200,'success');
+    }
+
     public function device(Request $request)
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info("device_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
         $data = $this->getInput($request);
@@ -44,7 +76,7 @@ class SnmpController extends Controller
             Log::info("device_uid = 参数错误" . $uid);
             return $this->returnJson(500,'参数错误');
         }
-        Log::info("device_uid = " . $uid);
+
         $host = str_replace(" ","",$data->sysName);
         $ip = $data->hostname;
         $device_id= $data->device_id;
@@ -55,6 +87,7 @@ class SnmpController extends Controller
             'ip' => $ip,
             'device_id'=>$device_id,
             'ptype'=>$ptype,
+            'type_flag' => 1,
             'update_time'=>date('Y-m-d H:i:s')
         ];
         $res = DB::table('host')->where('id',$hostid)->where('userid',$uid)->first();
@@ -76,9 +109,11 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info("deviceos_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
         if(!$request->has('device_id')){
+            Log::info("deviceos_uid = 未知device" . $uid);
             return $this->returnJson(404,'未知device');
         }
         $data = $this->getInput($request);
@@ -86,7 +121,6 @@ class SnmpController extends Controller
             Log::info("deviceos_uid = 未能获取参数" . $uid);
             return $this->returnJson(404,'未能获取参数');
         }
-        Log::info("deviceos_uid = " . $uid);
         $device_id= $request->device_id;
         $logo= $data->logo;
         $ptype= $data->os;
@@ -98,9 +132,11 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info('ports_uid=未知用户');
             return $this->returnJson(404,'未知用户');
         }
         if(!$request->has('device_id')){
+            Log::info('ports_uid=未知device'.$uid);
             return $this->returnJson(404,'未知device');
         }
         $device_id = $request->device_id;
@@ -109,7 +145,6 @@ class SnmpController extends Controller
             Log::info('ports_uid=未能获取参数'.$uid);
             return $this->returnJson(404,'未能获取参数');
         }
-        Log::info('ports_uid='.$uid);
         try{
             DB::table('ports')->where('userid',$uid)->where('device_id',$device_id)->delete();
             foreach($data as $item){
@@ -139,9 +174,11 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info("portsStack_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
         if(!$request->has('device_id')){
+            Log::info("portsStack_uid = 未知device" . $uid);
             return $this->returnJson(404,'未知device');
         }
         $device_id = $request->device_id;
@@ -150,7 +187,6 @@ class SnmpController extends Controller
             Log::info("portsStack_uid = 未能获取参数" . $uid);
             return $this->returnJson(404,'未能获取参数');
         }
-        Log::info("portsStack_uid = " . $uid);
         try{
             DB::table('ports_stack')->where('userid',$uid)->where('device_id',$device_id)->delete();
             foreach($data as $item){
@@ -174,10 +210,11 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info('ipv4NetWorks_uid = 未知用户');
             return $this->returnJson(404,'未知用户');
         }
-        Log::info("ipv4NetWorks_uid = " . $uid);
         if(!$request->has('device_id')){
+            Log::info('ipv4NetWorks_uid = 未知device'.$uid);
             return $this->returnJson(404,'未知device');
         }
         $device_id = $request->device_id;
@@ -186,7 +223,6 @@ class SnmpController extends Controller
             Log::info('ipv4NetWorks_uid = 未能获取参数' . $uid);
             return $this->returnJson(404,'未能获取参数');
         }
-        Log::info('ipv4NetWorks_uid = ' . $uid);
         try{
             DB::table('ipv4_networks')->where('userid',$uid)->where('device_id',$device_id)->delete();
             foreach($data as $item){
@@ -209,9 +245,11 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info("ipv4Address_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
         if(!$request->has('device_id')){
+            Log::info("ipv4Address_uid = 未知device".$uid);
             return $this->returnJson(404,'未知device');
         }
         $device_id = $request->device_id;
@@ -247,9 +285,11 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info("ipv6NetWorks_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
         if(!$request->has('device_id')){
+            Log::info("ipv6NetWorks_uid = 未知device".$uid);
             return $this->returnJson(404,'未知device');
         }
         $device_id = $request->device_id;
@@ -258,7 +298,6 @@ class SnmpController extends Controller
             Log::info('ipv6NetWorks_uid = 未能获取参数' . $uid);
             return $this->returnJson(404,'未能获取参数');
         }
-        Log::info('ipv6NetWorks_uid = ' . $uid);
         try{
             DB::table('ipv6_networks')->where('userid',$uid)->where('device_id',$device_id)->delete();
             foreach($data as $item){
@@ -281,10 +320,12 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info("ipv6Address_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
 
         if(!$request->has('device_id')){
+            Log::info("ipv6Address_uid = 未知device".$uid);
             return $this->returnJson(404,'未知device');
         }
         $device_id = $request->device_id;
@@ -322,9 +363,11 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info("ipv4Mac_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
         if(!$request->has('device_id')){
+            Log::info("ipv4Mac_uid = 未知device" . $uid);
             return $this->returnJson(404,'未知device');
         }
         $device_id = $request->device_id;
@@ -333,7 +376,6 @@ class SnmpController extends Controller
             Log::info("ipv4Mac_uid = 未能获取参数" . $uid);
             return $this->returnJson(404,'未能获取参数');
         }
-        Log::info("ipv4Mac_uid = " . $uid);
         try{
             DB::table('ipv4_mac')->where('userid',$uid)->where('device_id',$device_id)->delete();
             foreach($data as $item){
@@ -359,6 +401,7 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info("porttop_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
         $lists = MyApi::portTopData($uid);
@@ -369,9 +412,11 @@ class SnmpController extends Controller
     {
         $uid = $request->header('X-Consumer-Custom-ID');
         if(!$uid){
+            Log::info("metrics_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
         if(!$request->has('device_id')){
+            Log::info("metrics_uid = 未知device" . $uid);
             return $this->returnJson(404,'未知device');
         }
 
@@ -385,7 +430,6 @@ class SnmpController extends Controller
             Log::info("metrics = 未找到主机 | UID = " . $uid . " | device_id = " . $request->device_id);
             return $this->returnJson(404,'未找到主机');
         }
-        Log::info('snmp_metric = ' . json_encode($data));
         $host = $res->host_name;
         $arrPost = array();
         $metric = new Metric($data,$host,$uid);
@@ -396,4 +440,25 @@ class SnmpController extends Controller
             $arrPost = array();
         }
     }
+
+    public function deviceInfo(Request $request)
+    {
+        $uid = $request->header('X-Consumer-Custom-ID');
+        if(!$uid){
+            Log::info("deviceInfo = 未知用户");
+            return $this->returnJson(404,'未知用户');
+        }
+
+        if(!$request->has('device_id')){
+            Log::info("deviceInfo = 未知device" . $uid);
+            return $this->returnJson(404,'未知device');
+        }
+
+        $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)
+            ->select('ip','host_name','ptype','logo','type_flag','version','features','hardware','serial','sysObjectID')
+            ->first();
+
+        return $this->returnJson(200,'success',$res);
+    }
+
 }

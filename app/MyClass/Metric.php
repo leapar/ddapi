@@ -433,6 +433,36 @@ class Metric
         return $arrPost;
     }
 
+    /**
+     * vcenter 指标
+     */
+    public function vcenterMetric($arrPost)
+    {
+        foreach($this->metrics_in as $item) {
+            $sub = new \stdClass();
+            $sub->metric = $item->metric;
+            $sub->timestamp = $item->timestamp;
+            $sub->value = $item->value;
+            $sub->tags = new \stdClass();//$metric[3];
+            //$sub->tags->host = $this->host;
+            $sub->tags->uid = $this->uid;
+            $num = 1;
+            if(isset($item->tags)) {
+                foreach($item->tags as $tgk => $tgv) {
+                    if($num < 6 ) {
+                        $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tgv);
+                        $num++;
+                    }
+                }
+            }
+            array_push($arrPost, $sub);
+
+            $arrPost = $this->checkarrPost($arrPost);
+        }
+
+        return $arrPost;
+    }
+
 }
 
 

@@ -16,6 +16,7 @@
 });*/
 
 $app->get('/', function () use ($app) {
+    echo date('Y-m-d H:i:s',1495449300140);
     return $app->version();
 });
 
@@ -56,6 +57,9 @@ $app->group(['prefix' => 'p1','namespace'=>'App\Http\Controllers'], function () 
     $app->post('metric_templates/update.json','ApiController@templateUpdate');
     $app->post('metric_templates/{id}/delete.json','ApiController@templateDel');
     $app->get('metric_templates/list.json','ApiController@templateList');
+
+    //设备信息
+    $app->get('device_info','SnmpController@deviceInfo');
 });
 
 $app->group(['prefix' => 'p1','namespace'=>'App\Http\Controllers'], function () use ($app) {
@@ -82,5 +86,13 @@ $app->group(['prefix' => 'snmp/v1','namespace'=>'App\Http\Controllers'], functio
     $app->get('port_top','SnmpController@portTop');
     //指标
     $app->post('metrics','SnmpController@metrics');
+    //device update
+    $app->post('device_poller','SnmpController@devicePoller');
+
+});
+
+$app->group(['prefix' => 'vcenter/v1','namespace'=>'App\Http\Controllers'],function () use ($app) {
+    $app->post('finder','VcenterController@finder');
+    $app->post('metrics','VcenterController@metrics');
 });
 
