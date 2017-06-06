@@ -444,12 +444,11 @@ class SnmpController extends Controller
 
     public function deviceInfo(Request $request)
     {
-        $uid = $request->header('X-Consumer-Custom-ID');
-        if(!$uid){
+        if(!$request->has('uid')){
             Log::info("deviceInfo = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
-
+        $uid = $request->uid;
         if(!$request->has('device_id')){
             Log::info("deviceInfo = 未知device" . $uid);
             return $this->returnJson(404,'未知device');
