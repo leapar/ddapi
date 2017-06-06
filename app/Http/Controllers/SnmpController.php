@@ -53,8 +53,7 @@ class SnmpController extends Controller
             'hardware' => isset($data->hardware) ? $data->hardware : '',
             'serial' => isset($data->serial) ? $data->serial : '',
             'sysObjectID' => isset($data->sysObjectID) ? $data->sysObjectID : '',
-            'deviceType' => isset($data->deviceType) ? $data->deviceType : '',
-            'update_time'=>date('Y-m-d H:i:s')
+            'deviceType' => isset($data->deviceType) ? $data->deviceType : ''
         ];
 
         DB::table('host')->where('userid',$uid)->where('device_id',$device_id)->update($data);
