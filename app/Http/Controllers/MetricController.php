@@ -47,6 +47,7 @@ class MetricController extends Controller
             Log::info("intake_uid ===> ".$uid);
             if(!$uid){
                 Log::info("no uid host=" . $host);
+                die('{"result":"error"}');
                 return;
             }
 
@@ -118,10 +119,16 @@ class MetricController extends Controller
                 $this->hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used);
             //}
             $res = $my_metric->checktime($hostid.'intake');
-            if(!$res) return;
+            if(!$res) {
+                die('{"result":"ok"}');
+                return;
+            }
 
             $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks,null,$agent_checks))->onQueue("metricV1");
             $this->dispatch($metricjobV1);
+            
+
+            die('{"result":"ok"}');
         }catch(Exception $e){
             Log::error($e->getMessage());
         }
