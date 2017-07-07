@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Cache;
 use Log;
 use Mockery\CountValidator\Exception;
 use Symfony\Component\Debug\Exception\FatalErrorException;
+use App\MyClass\Vcenter;
 
 class Metric
 {
@@ -402,6 +403,11 @@ class Metric
      */
     public function snmpMetric($arrPost)
     {
+        $cpuIdle = 0;
+        $diskutilization = 0;
+        $disk_total = 0;
+        $iowait = null;
+        $load15 = null;
         foreach($this->metrics_in as $item) {
             $sub = new \stdClass();
             $sub->metric = $item->metric;
@@ -426,6 +432,13 @@ class Metric
                     }
                 }
             }
+            $redis_data = new static();
+            if($item->metric == 'system.disk.total') $redis_data->disk_total = $item->value;
+            if($item->metric == 'system.disk.in_use') $redis_data->diskutilization = $item->value * 100;
+            if($item->metric == 'system.cpu.idle') $redis_data->cpuIdle = $item->value;
+            if($item->metric == 'system.load.15') $redis_data->load15 = $item->value;
+            if($item->metric == 'system.cpu.iowait') $redis_data->iowait = $item->value;
+            MyApi::recevieDataPutRedis($this->host,$this->uid,$redis_data);
             array_push($arrPost, $sub);
 
             $arrPost = $this->checkarrPost($arrPost);
@@ -438,7 +451,12 @@ class Metric
      */
     public function vcenterMetric($arrPost)
     {
+        $redis_data = [];
         foreach($this->metrics_in as $item) {
+            $host = null;
+            $ptype = null;
+            $uuid = null;
+
             $sub = new \stdClass();
             $sub->metric = $item->metric;
             $sub->timestamp = $item->timestamp;
@@ -449,10 +467,51 @@ class Metric
             $num = 1;
             if(isset($item->tags)) {
                 foreach($item->tags as $tgk => $tgv) {
-                    if($num < 6 ) {
-                        $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tgv);
-                        $num++;
+
+                    if($tgk == 'HostSystem'){
+                        $host = preg_replace("/\_/u",".",$tgv);
+                        $ptype = $tgk;
+                    }else if($tgk == 'VirtualMachine'){
+                        $host = $tgv;
+                        $ptype = $tgk;
+                    }else{
+                        if($num < 6 ) {
+                            $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tgv);
+                            $num++;
+                        }
+                        if($tgk == 'hostUUID' || $tgk == 'vmUUID') $uuid = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tgv);
                     }
+                }
+            }
+            if(!is_null($host)){
+                $redis_data[$host] = [];
+                $redis_data[$host]['host'] = $host;
+                $redis_data[$host]['ptype'] = $ptype;
+                $redis_data[$host]['uuid'] = $uuid;
+                $redis_data[$host]['cpu_use'] = null;
+                $redis_data[$host]['disk_used'] = null;
+                $redis_data[$host]['disk_total'] = null;
+                $redis_data[$host]['cpu_wait'] = null;
+                $redis_data[$host]['cpu_used'] = null;
+                $redis_data[$host]['load15'] = null;
+                if($item->metric == 'cpu.usage.average')  $redis_data[$host]['cpu_use'] = $item->value;
+                if($item->metric == 'disk.used.latest')  $redis_data[$host]['disk_used'] = $item->value;
+                if($item->metric == 'disk.capacity.latest')  $redis_data[$host]['disk_total'] = $item->value;
+                if($item->metric == 'cpu.wait.summation')  $redis_data[$host]['cpu_wait'] = $item->value;
+                if($item->metric == 'cpu.used.summation')  $redis_data[$host]['cpu_used'] = $item->value;
+                if($item->metric == 'rescpu.actav15.latest')  $redis_data[$host]['load15'] = $item->value;
+            }
+            if(!empty($redis_data)){
+                foreach ($redis_data as $data){
+                    $host = $data['host'];
+                    $ptype = $data['ptype'];
+                    $uuid = $data['uuid'];
+                    $cpu_use = $data['cpu_use'];
+                    $diskutilization = $data['disk_total'] != 0 ? ($data['disk_used']/$data['disk_total']) * 100 : 0;
+                    $disk_total = $data['disk_total'];
+                    $iowait = $data['cpu_used'] != 0 ? ($data['cpu_wait']/$data['cpu_used']) * 100 : 0;
+                    $load15 = $data['load15'];
+                    Vcenter::recevieDataPutRedis($host,$this->uid,$ptype,$uuid,$cpu_use,$diskutilization,$disk_total,$iowait,$load15);
                 }
             }
             array_push($arrPost, $sub);

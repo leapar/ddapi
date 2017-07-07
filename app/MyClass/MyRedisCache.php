@@ -20,9 +20,9 @@ class MyRedisCache
 {
     public static function initRedis()
     {
-        $host = env('REDIS_HOST','127.0.0.1');
-        $port = env('REDIS_PORT',6379);
-        $pass = env('REDIS_PASSWORD',null);
+        $host = config('database.redis.default.host');
+        $port = config('database.redis.default.port');
+        $pass = config('database.redis.default.password');
         $redis = new \Redis();
         $redis->connect($host,$port);
         $redis->auth($pass);

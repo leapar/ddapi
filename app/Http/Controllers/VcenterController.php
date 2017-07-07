@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\VcenterV1;
 use App\MyClass\Metric;
 use App\MyClass\Vcenter;
 use Illuminate\Http\Request;
@@ -24,7 +25,7 @@ class VcenterController extends Controller
     {
         $data = file_get_contents('php://input');
         if($request->header('Content-Encoding') == "deflate" || $request->header('Content-Encoding') == "gzip"){
-            $data = zlib_decode ($data);
+            $data = zlib_decode($data);
         }
         return json_decode($data);
     }
@@ -57,7 +58,9 @@ class VcenterController extends Controller
         }
 
         foreach($data as $item){
-            Vcenter::switchByType($item,$uid,$vid);
+            $dataCenter = $item->dataCenter;
+            Vcenter::saveVcenter($dataCenter,$uid,$vid);
+            //Vcenter::switchByType($item,$uid,$vid);
         }
     }
 
@@ -81,6 +84,9 @@ class VcenterController extends Controller
             return $this->returnJson(404,'未能获取参数');
         }
 
+        $vcenterv1 = (new VcenterV1($data,$host,$uid))->onQueue("vcenterv1");
+        $this->dispatch($vcenterv1);
+        return;
         $arrPost = array();
         $metric = new Metric($data,$host,$uid);
         $arrPost = $metric->vcenterMetric($arrPost);
@@ -90,5 +96,36 @@ class VcenterController extends Controller
             $metric->post2tsdb($arrPost);
             $arrPost = array();
         }
+    }
+
+    public function vclist(Request $request)
+    {
+        $uid = $request->header('X-Consumer-Custom-ID');
+        //$uid = 1;
+        if(!$uid){
+            Log::info("vcenter_top = 未知用户");
+            return $this->returnJson(404,'未知用户');
+        }
+        $ret = Vcenter::getVclist($uid);
+        return $this->returnJson(200,'success',$ret);
+    }
+
+    public function vctop(Request $request)
+    {
+        $uid = $request->header('X-Consumer-Custom-ID');
+        //$uid = 1;
+        if(!$uid){
+            Log::info("vcenter_top = 未知用户");
+            return $this->returnJson(404,'未知用户');
+        }
+        if(!$request->has('vcid')){
+            Log::info("vcenter_top = vcid" . $uid);
+            return $this->returnJson(404,'参数错误');
+        }
+        //$ret = Vcenter::getVctop($uid,$request);
+        $ret = Vcenter::getVctopV1($uid,$request);
+        //return response()->json($ret);
+        return $this->returnJson(200,'success',$ret);
+
     }
 }

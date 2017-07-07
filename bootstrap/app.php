@@ -80,6 +80,11 @@ $app->singleton(
 |
 */
 
+$app->configure('database');
+$app->configure('queue');
+$app->configure('myconfig');
+ini_set('memory_limit', '512M');
+
 $app->register(App\Providers\AppServiceProvider::class);
 // $app->register(App\Providers\AuthServiceProvider::class);
 // $app->register(App\Providers\EventServiceProvider::class);
@@ -108,9 +113,6 @@ $app->group(['namespace' => 'App\Http\Controllers'], function ($app) {
     require __DIR__.'/../routes/web.php';
 });
 
-$app->configure('database');
-$app->configure('queue');
-$app->configure('myconfig');
-ini_set('memory_limit', '256M');
+
 
 return $app;

@@ -222,25 +222,47 @@ class MyApi
 
     public static function getMetricTypes($uid, $metric_name)
     {
-        $first = DB::table('metric_types')->whereNotNull('userId')->where('userId', $uid)->where('metric_name', '=', $metric_name);
-        $res = DB::table('metric_types')->whereNull('userId')->where('type', 0)->where('metric_name', '=', $metric_name)
-            ->unionAll($first)->orderBy('created_at', 'asc')->get();
-        if (count($res) > 0) {
+        //$first = DB::table('metric_types')->whereNotNull('userId')->where('userId', $uid)->where('metric_name', '=', $metric_name);
+        /*$res = DB::table('metric_types')->whereNull('userId')->where('type', 0)->where('metric_name', '=', $metric_name)
+            ->unionAll($first)->orderBy('type','desc')->orderBy('created_at', 'asc')->first();*/
+        $plural_unit = null;
+        $per_unit = null;
+
+        $res = DB::table('metric_types')->where('metric_name', $metric_name)->where('type', 0)->first();
+        $res->created_at = strtotime($res->created_at) * 1000;
+        $res->updated_at = strtotime($res->updated_at) * 1000;
+        return $res;
+
+        /*if (count($res) > 0) {
             if (count($res) == 1) {
                 $item = $res[0];
                 $item->created_at = strtotime($item->created_at) * 1000;
                 $item->updated_at = strtotime($item->updated_at) * 1000;
-                return $res[0];
+                $item->user_per_unit = $per_unit;
+                $item->user_plural_unit = $plural_unit;
+                return $item;
             }
             if (count($res) == 2) {
+                $ret = new \stdClass();
                 foreach ($res as $item) {
+                    if($item->type == 0){
+                        $plural_unit = $item->plural_unit;
+                        $per_unit = $item->per_unit;
+                    }
                     if ($item->type == 1) {
-                        $item->created_at = strtotime($item->created_at) * 1000;
-                        $item->updated_at = strtotime($item->updated_at) * 1000;
-                        return $item;
-                        break;
+                        $ret = $item;
+                        $ret->created_at = strtotime($item->created_at) * 1000;
+                        $ret->updated_at = strtotime($item->updated_at) * 1000;
+                        $ret->user_per_unit = $item->per_unit;
+                        $ret->user_plural_unit = $item->plural_unit;
+                        //return $item;
+                        //break;
                     }
                 }
+                $ret->per_unit = $per_unit;
+                $ret->plural_unit = $plural_unit;
+
+                return $ret;
             }
         } else {
             //从ci 中获取
@@ -269,7 +291,7 @@ class MyApi
                 return $item;
             }
             return $metric_types;
-        }
+        }*/
     }
 
     public static function saveMetricTypes($metric_types)
@@ -305,8 +327,8 @@ class MyApi
         ];
         if(isset($data->description)) $up_data['description'] = $data->description;
         if(isset($data->metric_type)) $up_data['metric_type'] = $data->metric_type;
-        if(isset($data->plural_unit)) $up_data['plural_unit'] = $data->plural_unit;
-        if(isset($data->per_unit)) $up_data['per_unit'] = $data->per_unit;
+        if(isset($data->user_plural_unit)) $up_data['plural_unit'] = $data->plural_unit;
+        if(isset($data->uesr_per_unit)) $up_data['per_unit'] = $data->per_unit;
         
         $res = DB::table('metric_types')->where('userId', $uid)->where('metric_name', $data->metric_name)->update($up_data);
         if (!$res) {
@@ -736,16 +758,32 @@ class MyApi
         $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
         //$hsname = "HOST_DATA_".$uid;
         $hsname = "HOST_DATA_".$uid."_".$host;
+        $redis_data = json_decode(Redis::command('GET', [$hsname]),true);
+        if(isset($data->device_id)){
+            $redis_data = [
+                "hostId" => $hostid,
+                "hostName" => $host,
+                "updatetime" => $msec,
+                "colletcionstamp" => time(),
+                "ptype" => $data->os,
+                "ip" => $data->hostname,
+                "device_id" => $data->device_id,
 
-        $redis_data = [
-            "hostId" => $hostid,
-            "hostName" => $host,
-            "updatetime" => $msec,
-            "colletcionstamp" => time(),
-            "ptype" => $data->os,
-            "ip" => $data->hostname,
-            "device_id" => $data->device_id
-        ];
+                "cpu" => null,
+                "diskutilization" => null,
+                "disksize" => null,
+                "iowait" => null,
+                "load15" => null
+            ];
+        }
+
+        if(!empty($redis_data)){
+            isset($data->cpuIdle) ? $redis_data['cpu'] = $data->cpuIdle : 0;
+            isset($data->diskutilization) ? $redis_data['diskutilization'] = $data->diskutilization : 0;
+            isset($data->disk_total) ? $redis_data['disksize'] = $data->disk_total : 0;
+            isset($data->iowait) ? $redis_data['iowait'] = $data->iowait : 0;
+            isset($data->load15) ? $redis_data['load15'] = $data->load15 : 0;
+        }
 
         //Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
         Redis::command('SET',[$hsname,json_encode($redis_data)]);
@@ -758,13 +796,21 @@ class MyApi
     public static function portTopData($uid)
     {
         $lists = DB::table('ipv4_mac')
-            ->where('userid',$uid)
-            ->whereNotIn('mac_address',['000000000000','ffffffffffff'])
-            ->orderBy('device_id','asc')
+            ->leftJoin(DB::raw('ports'), function ($join) {
+                $join->on('ipv4_mac.port_id','=','ports.port_id')
+                    ->on('ipv4_mac.device_id','=','ports.device_id');
+            })
+            ->leftJoin(DB::raw('ports as remote_ports'), function ($join) {
+                $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress')
+                    ->on('ipv4_mac.device_id','=','remote_ports.device_id');
+            })
+            ->where('ipv4_mac.userid',$uid)
+            ->whereNotIn('ipv4_mac.mac_address',['000000000000','ffffffffffff'])
+            ->orderBy('ipv4_mac.device_id','asc')
+            ->select('ipv4_mac.*','ports.ifName as port_name','remote_ports.ifName as remote_port_name')
             ->get();
         $devices = DB::table('host')
-            ->where('userid',$uid)
-            ->select(DB::raw('host_name as local_sysName'),DB::raw('ptype as local_os'),DB::raw('host.ip as local_hostname'),'device_id')
+            ->where('userid',$uid)->whereNotNull('device_id')
             ->orderBy('device_id','asc')
             ->get();
         $device_ids = [];
@@ -778,31 +824,53 @@ class MyApi
         $ret->edges = [];
         $id = 0;
         foreach($devices as $item){
-            if(in_array($item->local_os,$os_arr)) continue;
+            if(in_array($item->ptype,$os_arr)) continue;
             $id ++;
             $stemp = new \stdClass();
             $stemp->id = $id;
-            $stemp->label = $item->local_hostname;
-            $stemp->value = $item->device_id;
-            $stemp->title = $item->local_sysName;
+            $stemp->hostName = $item->host_name;
+            //$stemp->value = $item->device_id;
+            $stemp->ip = $item->ip;
+
+            $stemp->logo = $item->logo;
+            $stemp->deviceType = $item->deviceType;
+            $stemp_2 = new \stdClass();
+            $stemp_2->sysObjectId = $item->sysObjectID;
+            $stemp_2->hardware = $item->hardware;
+            $logo_arr = explode(".",$item->logo);
+            $features = $item->features ? '('.$item->features.')' : '';
+            $stemp_2->OperatingSystem = strtoupper($logo_arr[0]) . ' ' . $item->ptype . ' ' . $item->version . $features;
+            $stemp_2->serial = $item->serial;
+            $stemp_2->version = $item->version;
+
+            $stemp->info = $stemp_2;
             $stemp->shape = 'circle';
             $stemp->group = $id;
             array_push($ret->nodes,$stemp);
 
             $device_ids[$item->device_id] = $id;
-            array_push($device_ips,$item->local_hostname);
-            $device_host[$item->local_hostname] = $id;
+            array_push($device_ips,$item->ip);
+            $device_host[$item->ip] = $id;
         }
         foreach($lists as $item){
             if(!isset($device_ids[$item->device_id])) continue;
+            $local_port_name = '';
+            if(!empty($item->port_name)) $local_port_name = $item->port_name;
+            $remote_port_name = '';
+            if(!empty($item->remote_port_name)) $remote_port_name = $item->remote_port_name;
+
+            $edege_title = $local_port_name . ' > ' . $remote_port_name;
+
             $local_id = $device_ids[$item->device_id];
             if(in_array($item->ipv4_address,$device_ips)){
                 $to = $device_host[$item->ipv4_address];
                 $stemp2 = new \stdClass();
                 $stemp2->from = $local_id;
                 $stemp2->to = $to;
-                $stemp2->arrows = 'to';
-                $stemp2->label = $item->port_id;
+                //$stemp2->arrows = 'to';
+                $stemp2->port = $item->port_id;
+                //$stemp2->portName = empty($item->port_name)? '':$item->port_name;
+                $stemp2->portName = $edege_title;
                 array_push($ret->edges,$stemp2);
             }else{
                 if(in_array($item->ipv4_address,$mac_ips)){
@@ -810,14 +878,16 @@ class MyApi
                     $stemp2 = new \stdClass();
                     $stemp2->from = $local_id;
                     $stemp2->to = $to;
-                    $stemp2->arrows = 'to';
-                    $stemp2->label = $item->port_id;
+                    //$stemp2->arrows = 'to';
+                    $stemp2->port = $item->port_id;
+                    //$stemp2->portName = empty($item->port_name)? '':$item->port_name;
+                    $stemp2->portName = $edege_title;
                     array_push($ret->edges,$stemp2);
                 }else{
                     $id++;
                     $stemp = new \stdClass();
                     $stemp->id = $id;
-                    $stemp->label = $item->ipv4_address;
+                    $stemp->ip = $item->ipv4_address;
                     $stemp->group = $local_id;
                     //$stemp->title = $item->ipv4_address;
                     array_push($ret->nodes,$stemp);
@@ -825,8 +895,10 @@ class MyApi
                     $stemp2 = new \stdClass();
                     $stemp2->from = $local_id;
                     $stemp2->to = $id;
-                    $stemp2->arrows = 'to';
-                    $stemp2->label = $item->port_id;
+                    //$stemp2->arrows = 'to';
+                    $stemp2->port = $item->port_id;
+                    //$stemp2->portName = empty($item->port_name)? '':$item->port_name;
+                    $stemp2->portName = $edege_title;
                     array_push($ret->edges,$stemp2);
 
                     array_push($mac_ips,$item->ipv4_address);

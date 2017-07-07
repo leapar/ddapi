@@ -57,6 +57,12 @@ $app->group(['prefix' => 'p1','namespace'=>'App\Http\Controllers'], function () 
     $app->post('metric_templates/update.json','ApiController@templateUpdate');
     $app->post('metric_templates/{id}/delete.json','ApiController@templateDel');
     $app->get('metric_templates/list.json','ApiController@templateList');
+
+    //硬件拓扑数据
+    $app->get('port_top','SnmpController@portTop');
+    //虚拟机拓扑数据
+    $app->get('vc_top','VcenterController@vctop');
+    $app->get('vc_list','VcenterController@vclist');
 });
 
 $app->group(['prefix' => 'p1','namespace'=>'App\Http\Controllers'], function () use ($app) {
@@ -79,8 +85,7 @@ $app->group(['prefix' => 'snmp/v1','namespace'=>'App\Http\Controllers'], functio
     $app->post('ipv4_mac','SnmpController@ipv4Mac');
     $app->post('ipv6_networks','SnmpController@ipv6NetWorks');
     $app->post('ipv6_addresses','SnmpController@ipv6Address');
-    //拓扑数据
-    $app->get('port_top','SnmpController@portTop');
+
     //指标
     $app->post('metrics','SnmpController@metrics');
     //device update

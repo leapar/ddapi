@@ -405,7 +405,8 @@ class SnmpController extends Controller
             return $this->returnJson(404,'未知用户');
         }
         $lists = MyApi::portTopData($uid);
-        return response()->json($lists);
+        return $this->returnJson(200,'success',$lists);
+        //return response()->json($lists);
     }
 
     public function metrics(Request $request)
@@ -456,8 +457,14 @@ class SnmpController extends Controller
         $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)
             ->select('ip','host_name','ptype','logo','type_flag','version','features','hardware','serial','sysObjectID','deviceType')
             ->first();
-
-        return $this->returnJson(200,'success',$res);
+        if($res){
+            $logo_arr = explode(".",$res->logo);
+            $features = $res->features ? '('.$res->features.')' : '';
+            $res->OperatingSystem = strtoupper($logo_arr[0]) . ' ' . $res->ptype . ' ' . $res->version . $features;
+            return $this->returnJson(200,'success',$res);
+        }else{
+            return $this->returnJson(200,'未找到设备信息');
+        }
     }
 
 }
