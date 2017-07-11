@@ -50,7 +50,8 @@ class MyApi
         $results = isset($data->results) ? $data->results : [];
         $custom = null;
         if (count($results) > 0) {
-            $custom = $results[0]->custom;
+            $item = $results[0];
+            $custom = $item->custom;
         }
         return $custom;
     }
@@ -229,6 +230,9 @@ class MyApi
         $per_unit = null;
 
         $res = DB::table('metric_types')->where('metric_name', $metric_name)->where('type', 0)->first();
+        if(!$res){
+            return [];
+        }
         $res->created_at = strtotime($res->created_at) * 1000;
         $res->updated_at = strtotime($res->updated_at) * 1000;
         return $res;

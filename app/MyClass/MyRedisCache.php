@@ -86,7 +86,8 @@ class MyRedisCache
                         array_push($tags_temp,$arr[0].':'.$arr[1]);
                     }
                     if($arr[0] === 'host' && !empty($arr[1])){
-                        if(isset($custom_tags->$arr[1])) $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
+                        $key = $arr[1];
+                        if(isset($custom_tags->$key)) $tags_temp = array_merge($tags_temp,$custom_tags->$key);
                     }
                 }
             }
@@ -128,7 +129,8 @@ class MyRedisCache
                         array_push($tags_temp,$arr[0].':'.$arr[1]);
                     }
                     if($arr[0] === 'host' && !empty($arr[1])){
-                        if(isset($custom_tags->$arr[1])) $tags_temp = array_merge($tags_temp,$custom_tags->$arr[1]);
+                        $key = $arr[1];
+                        if(isset($custom_tags->$key)) $tags_temp = array_merge($tags_temp,$custom_tags->$key);
                     }
                 }
             }

@@ -117,12 +117,13 @@ class Metric
         if(isset($tag->tags)) {
             foreach($tag->tags as $value) {
                 $tmps = explode(":",$value);
+                $key = $tmps[0];
                 if(count($tmps) == 2) {
                     //	Log::info("value===".$tmps[1]);
                     //	Log::info("valuevalue===".str_replace(array("{","}"), "_", $tmps[1]));
-                    $sub->tags->$tmps[0] = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
+                    $sub->tags->$key = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
                 } else {
-                    $sub->tags->$tmps[0] = "NULL";//$sub->tags->$tmps[0];
+                    $sub->tags->$key = "NULL";//$sub->tags->$tmps[0];
                 }
             }
         }
@@ -333,12 +334,12 @@ class Metric
         if(isset($item->tags)) {
             foreach($item->tags as $value) {
                 $tmps = explode(":",$value);
-
+                $key = $tmps[0];
                 if(count($tmps) == 2) {
                     //	Log::info("value===".$tmps[1]);
-                    $sub->tags->$tmps[0] = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
+                    $sub->tags->$key = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
                 } else {
-                    $sub->tags->$tmps[0] = "NULL";//$sub->tags->$tmps[0];
+                    $sub->tags->$key = "NULL";//$sub->tags->$tmps[0];
                 }
             }
         }

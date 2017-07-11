@@ -122,9 +122,21 @@ class Vcenter
                         ];
                         $uuid = $vm->vmSummary->config->uuid;
 
+                        if(stripos($vm_param['sysName'], 'Red Hat') !== false){
+                            $logo = 'redhat.svg';
+                        }else if(stripos($vm_param['sysName'], 'CentOS') !== false){
+                            $logo = 'centos.svg';
+                        }else if(stripos($vm_param['sysName'], 'Windows') !== false){
+                            $logo = 'windows.svg';
+                        }else if(stripos($vm_param['sysName'], 'Linux') !== false){
+                            $logo = 'linux.svg';
+                        }else{
+                            $logo = 'generic.svg';
+                        }
+
                         Vcenter::dbSave($vmid,"virtual_machines",$vm_param);
                         Vcenter::recevieDataPutRedis($vm_name,$uid,$vmtype,$uuid);
-                        Vcenter::saveToApmsys($vm_name,$uid,$vmtype,$uuid);
+                        Vcenter::saveToApmsys($vm_name,$uid,$vmtype,$uuid,$logo);
 
                         $datastore = $vm->datastoreSummarys;
                         foreach($datastore as $store){
@@ -172,13 +184,23 @@ class Vcenter
         Vcenter::VDB()->table($table)->where('id',$id)->update($param);
     }
 
-    public static function saveToApmsys($hostname,$uid,$ptype,$uuid)
+    public static function saveToApmsys($hostname,$uid,$ptype,$uuid,$logo=null)
     {
         if(empty($hostname)) return;
         $hostid = md5(md5($uid).md5($hostname));
         DB::table('host')->where('id',$hostid)->delete();
         DB::table('host_user')->where('userid',$uid)->where('hostid',$hostid)->delete();
-        DB::table('host')->insert(['id' => $hostid,'ptype' => $ptype,'host_name' => $hostname,'uuid' => $uuid,'userid' => $uid,'type_flag' => 2,'createtime' => date('Y-m-d H:i:s')]);
+        $data = [
+            'id' => $hostid,
+            'ptype' => $ptype,
+            'host_name' => $hostname,
+            'uuid' => $uuid,
+            'userid' => $uid,
+            'type_flag' => 2,
+            'createtime' => date('Y-m-d H:i:s')
+        ];
+        if(!is_null($logo)) $data['logo'] = $logo;
+        DB::table('host')->insert($data);
         DB::table('host_user')->insert(['userid'=>$uid,'hostid'=>$hostid]);
     }
 
@@ -467,7 +489,8 @@ class Vcenter
             $id++;
             $arr_model = explode(':',$host->hardware_model);
             $title = new \stdClass();
-            $title->$arr_model[0] = isset($arr_model[1]) ? $arr_model[1] : '';
+            $key = $arr_model[0];
+            $title->$key= isset($arr_model[1]) ? $arr_model[1] : '';
             $title->virtual_machines = $host->vm_num;
             $title->hardware_model = $host->hardware_model;
             $title->hardware_vendor = $host->hardware_vendor;
