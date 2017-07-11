@@ -87,11 +87,22 @@ class HostJobV1 extends Job
             $process = isset($this->metrics_in->processes) ? json_encode($this->metrics_in->processes->processes) : null;
             Redis::command('HSET',[$hsname,$host_process,$process]);*/
 
+            if($this->metrics_in->os == 'linux'){
+                $logo = 'linux.svg';
+            }else if($this->metrics_in->os == 'windows'){
+                $logo = 'windows.svg';
+            }else if($this->metrics_in->os == 'mac'){
+                $logo = 'mac.svg';
+            }else{
+                $logo = '';
+            }
+
             $data = [
                 "host_name" => $hostname,
                 "ptype" => $this->metrics_in->os,
                 "uuid" => $this->metrics_in->uuid,
-                "lastStartTime" => date("Y-m-d H:i:s")
+                "lastStartTime" => date("Y-m-d H:i:s"),
+                "logo" => $logo
             ];
 
             if(isset($this->metrics_in->gohai) && !empty($this->metrics_in->gohai)){
