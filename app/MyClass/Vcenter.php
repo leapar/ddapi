@@ -261,7 +261,9 @@ class Vcenter
             $id++;
             $arr_model = explode(':',$host->hardware_model);
             $title = new \stdClass();
-            $title->$arr_model[0] = isset($arr_model[1]) ? $arr_model[1] : '';
+            $key = $arr_model[0];
+            $value = isset($arr_model[1]) ? $arr_model[1] : '';
+            $title->$key = $value;
             $title->virtual_machines = $host->vm_num;
             $title->hardware_model = $host->hardware_model;
             $title->hardware_vendor = $host->hardware_vendor;
