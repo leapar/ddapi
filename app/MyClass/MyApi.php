@@ -463,8 +463,8 @@ class MyApi
             ->where('host_user.userid',$uid)
             ->select('metric_host.check_run','metric_host.service_checks')->get();
         foreach($metric_hosts as $metric_host){
-            $check_run  = \GuzzleHttp\json_decode($metric_host->check_run);
-            $service_check = \GuzzleHttp\json_decode($metric_host->service_checks);
+            $check_run  = json_decode($metric_host->check_run);
+            $service_check = json_decode($metric_host->service_checks);
             if(!empty($check_run)){
                 foreach($check_run as $check){
                     $check_status = $check->check;
