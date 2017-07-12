@@ -112,6 +112,9 @@ class MetricController extends Controller
 
                 $hostjobV1 = (new HostJobV1($metrics_in,$uid,$cpuIdle,$disk_total,$disk_used))->onQueue("hostV1");
                 $this->dispatch($hostjobV1);
+
+                $metricjobV1 = (new MetricJobV1($hostid,$metrics_in->service_checks,null,$agent_checks))->onQueue("metricV1");
+                $this->dispatch($metricjobV1);
             }
 
             $res = $my_metric->checktime($hostid.'intake_redis',1);
