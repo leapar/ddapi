@@ -799,20 +799,36 @@ class MyApi
      */
     public static function portTopData($uid)
     {
-        $lists = DB::table('ipv4_mac')
+        $lists1 = DB::table('ipv4_mac')
             ->leftJoin(DB::raw('ports'), function ($join) {
-                $join->on('ipv4_mac.port_id','=','ports.port_id')
-                    ->on('ipv4_mac.device_id','=','ports.device_id');
+                $join->on('ipv4_mac.port_id','=','ports.port_id');
             })
             ->leftJoin(DB::raw('ports as remote_ports'), function ($join) {
-                $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress')
-                    ->on('ipv4_mac.device_id','=','remote_ports.device_id');
+                $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress');
             })
             ->where('ipv4_mac.userid',$uid)
+            ->whereNotNull('remote_ports.device_id')
+            ->where('ports.device_id','<>','remote_ports.device_id')//排除自己连自己
             ->whereNotIn('ipv4_mac.mac_address',['000000000000','ffffffffffff'])
             ->orderBy('ipv4_mac.device_id','asc')
-            ->select('ipv4_mac.*','ports.ifName as port_name','remote_ports.ifName as remote_port_name')
-            ->get();
+            ->groupBy('ports.device_id','remote_ports.device_id') //排除连个设备间多条链接
+            ->select('ipv4_mac.*','ports.ifName as port_name','ports.ifDescr as port_name2','remote_ports.ifName as remote_port_name','remote_ports.ifDescr as remote_port_name2')
+            ->get()->toArray();
+        $lists2 = DB::table('ipv4_mac')
+            ->leftJoin(DB::raw('ports'), function ($join) {
+                $join->on('ipv4_mac.port_id','=','ports.port_id');
+            })
+            ->leftJoin(DB::raw('ports as remote_ports'), function ($join) {
+                $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress');
+            })
+            ->where('ipv4_mac.userid',$uid)
+            ->whereNull('remote_ports.device_id')//非系统设备
+            ->whereNotIn('ipv4_mac.mac_address',['000000000000','ffffffffffff'])
+            ->orderBy('ipv4_mac.device_id','asc')
+            //->groupBy('ports.device_id','remote_ports.device_id') //排除连个设备间多条链接
+            ->select('ipv4_mac.*','ports.ifName as port_name','ports.ifDescr as port_name2','remote_ports.ifName as remote_port_name','remote_ports.ifDescr as remote_port_name2')
+            ->get()->toArray();
+        $lists = array_merge($lists1,$lists2);
         $devices = DB::table('host')
             ->where('userid',$uid)->whereNotNull('device_id')
             ->orderBy('device_id','asc')
@@ -858,12 +874,12 @@ class MyApi
         }
         foreach($lists as $item){
             if(!isset($device_ids[$item->device_id])) continue;
-            $local_port_name = '';
-            if(!empty($item->port_name)) $local_port_name = $item->port_name;
-            $remote_port_name = '';
-            if(!empty($item->remote_port_name)) $remote_port_name = $item->remote_port_name;
+            $local_port_name = $item->port_name;
+            if(empty($item->port_name)) $local_port_name = $item->port_name2;
+            $remote_port_name = $item->remote_port_name;
+            if(empty($item->remote_port_name)) $remote_port_name = $item->remote_port_name2;
 
-            $edege_title = $local_port_name . ' > ' . $remote_port_name;
+            $edege_title = empty($item->remote_port_name2) ? $local_port_name : $local_port_name . ' > ' . $remote_port_name;
 
             $local_id = $device_ids[$item->device_id];
             if(in_array($item->ipv4_address,$device_ips)){
