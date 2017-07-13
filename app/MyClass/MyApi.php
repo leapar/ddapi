@@ -884,6 +884,7 @@ class MyApi
             $local_id = $device_ids[$item->device_id];
             if(in_array($item->ipv4_address,$device_ips)){
                 $to = $device_host[$item->ipv4_address];
+                if($local_id == $to) continue;
                 $stemp2 = new \stdClass();
                 $stemp2->from = $local_id;
                 $stemp2->to = $to;
