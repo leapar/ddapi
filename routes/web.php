@@ -91,6 +91,7 @@ $app->group(['prefix' => 'snmp/v1','namespace'=>'App\Http\Controllers'], functio
     //device update
     $app->post('device_poller','SnmpController@devicePoller');
 
+    $app->post('metrics_check','SnmpController@metricsCheck');
 });
 
 $app->group(['prefix' => 'vcenter/v1','namespace'=>'App\Http\Controllers'],function () use ($app) {

@@ -442,6 +442,35 @@ class SnmpController extends Controller
         }
     }
 
+    public function metricsCheck(Request $request)
+    {
+        $uid = $request->header('X-Consumer-Custom-ID');
+        if(!$uid){
+            Log::info("metrics_uid = 未知用户");
+            return $this->returnJson(404,'未知用户');
+        }
+        if(!$request->has('device_id')){
+            Log::info("metrics_uid = 未知device" . $uid);
+            return $this->returnJson(404,'未知device');
+        }
+
+        $data = $this->getInput($request);
+        if(empty($data)){
+            Log::info("metrics_uid = 未能获取参数" . $uid . " | device_id = " . $request->device_id);
+            return $this->returnJson(404,'未能获取参数');
+        }
+        $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)->first();
+        if(empty($res)){
+            Log::info("metrics = 未找到主机 | UID = " . $uid . " | device_id = " . $request->device_id);
+            return $this->returnJson(404,'未找到主机');
+        }
+        $host = $res->host_name;
+        $hostid = md5(md5($uid).md5($host));
+
+        DB::table('metric_host')->where('hostid',$hostid)->delete();
+        DB::table('metric_host')->insert(['hostid'=>$hostid,'service_checks'=>json_encode($data)]);
+    }
+
     public function deviceInfo(Request $request)
     {
         if(!$request->has('uid')){
