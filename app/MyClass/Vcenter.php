@@ -24,12 +24,21 @@ class Vcenter
     const DATASTORE = 'Datastore';// (和vm一样，属于host 或者 folder)
     const NETWORK = 'Network';// (和vm一样，属于host 或者 folder)
 
+    const VIR_DOMAIN_NOSTATE = 0;     /* no state */
+    const VIR_DOMAIN_RUNNING = 1;     /* the domain is running */
+    const VIR_DOMAIN_BLOCKED = 2;     /* the domain is blocked on resource */
+    const VIR_DOMAIN_PAUSED  = 3;     /* the domain is paused by user */
+    const VIR_DOMAIN_SHUTDOWN= 4;     /* the domain is being shut down */
+    const VIR_DOMAIN_SHUTOFF = 5;     /* the domain is shut off */
+    const VIR_DOMAIN_CRASHED = 6;     /* the domain is crashed */
+    const VIR_DOMAIN_PMSUSPENDED = 7; /* the domain is suspended by guest power management */
+
     public static function VDB()
     {
         return app('db')->connection("mysql_vcenter");
     }
 
-    public static function saveVcenter($dataCenter,$uid,$vid)
+    public static function saveVcenter($dataCenter,$uid,$vid,$arrPost,$metric)
     {
         $color = [
             'gray' => 0,
@@ -66,6 +75,17 @@ class Vcenter
 
                 foreach($cluster->hosts as $host){
 
+                    $agent_check = $host->agent_Check;
+                    $agent_check->tags->uid = $uid;
+                    $agent_check->tags->host = $agent_check->tags->HostSystem;
+                    unset($agent_check->tags->HostSystem);
+                    array_push($arrPost,$agent_check);
+
+                    if(count($arrPost) > 30) {
+                        $metric->post2tsdb($arrPost);
+                        $arrPost = array();
+                    }
+
                     $hostSummary = $host->hostSummary;
                     $host_name = $hostSummary->config->name;
                     if(empty($host_name)) continue;
@@ -86,7 +106,7 @@ class Vcenter
                     $uuid = $hostSummary->hardware->uuid;
                     Vcenter::dbSave($hid,"hosts",$param);
                     Vcenter::recevieDataPutRedis($host_name,$uid,$type,$uuid);
-                    Vcenter::saveToApmsys($host_name,$uid,$type,$uuid);
+                    Vcenter::saveToApmsys($host_name,$uid,$type,2,$uuid);
 
                     foreach($host->datastoresSummarys as $store){
                         $store_name = $store->name;
@@ -100,6 +120,18 @@ class Vcenter
 
 
                     foreach($host->vms as $vm){
+
+                        $agent_check = $vm->agent_Check;
+                        $agent_check->tags->uid = $uid;
+                        $agent_check->tags->host = $agent_check->tags->VirtualMachine;
+                        unset($agent_check->tags->VirtualMachine);
+                        array_push($arrPost,$agent_check);
+
+                        if(count($arrPost) > 30) {
+                            $metric->post2tsdb($arrPost);
+                            $arrPost = array();
+                        }
+
                         $vm_name = $vm->vmSummary->config->name;
                         if(empty($vm_name)) continue;
                         $vmid = md5(md5($uid).md5($vm_name));
@@ -136,7 +168,7 @@ class Vcenter
 
                         Vcenter::dbSave($vmid,"virtual_machines",$vm_param);
                         Vcenter::recevieDataPutRedis($vm_name,$uid,$vmtype,$uuid);
-                        Vcenter::saveToApmsys($vm_name,$uid,$vmtype,$uuid,$logo);
+                        Vcenter::saveToApmsys($vm_name,$uid,$vmtype,2,$uuid,$logo);
 
                         $datastore = $vm->datastoreSummarys;
                         foreach($datastore as $store){
@@ -152,7 +184,7 @@ class Vcenter
                 }
             }
 
-
+            return $arrPost;
         }
     }
 
@@ -184,7 +216,7 @@ class Vcenter
         Vcenter::VDB()->table($table)->where('id',$id)->update($param);
     }
 
-    public static function saveToApmsys($hostname,$uid,$ptype,$uuid,$logo=null)
+    public static function saveToApmsys($hostname,$uid,$ptype,$type_flag,$uuid=null,$logo=null)
     {
         if(empty($hostname)) return;
         $hostid = md5(md5($uid).md5($hostname));
@@ -196,7 +228,7 @@ class Vcenter
             'host_name' => $hostname,
             'uuid' => $uuid,
             'userid' => $uid,
-            'type_flag' => 2,
+            'type_flag' => $type_flag,
             'createtime' => date('Y-m-d H:i:s')
         ];
         if(!is_null($logo)) $data['logo'] = $logo;
@@ -213,35 +245,36 @@ class Vcenter
         $hsname = "HOST_DATA_".$uid."_".$host;
 
         $redis_data = json_decode(Redis::command('GET', [$hsname]),true);
-        if(is_null($cpuIdle)){
-            $redis_data = [
-                "hostId" => $hostid,
-                "hostName" => $host,
-                "updatetime" => $msec,
-                "colletcionstamp" => time(),
-                "ptype" => $ptype,
-                "uuid" => $uuid,
+        $cpu_r= isset($redis_data['cpu'])?$redis_data['cpu']:null;
+        $diskutilization_r= isset($redis_data['diskutilization'])?$redis_data['diskutilization']:null;
+        $disksize_r= isset($redis_data['disksize'])?$redis_data['disksize']:null;
+        $iowait_r= isset($redis_data['iowait'])?$redis_data['iowait']:null;
+        $load15_r= isset($redis_data['load15'])?$redis_data['load15']:null;
 
-                "cpu" => null,
-                "diskutilization" => null,
-                "disksize" => null,
-                "iowait" => null,
-                "load15" => null
-            ];
-        }else if(!empty($redis_data)){
-            !is_null($cpuIdle) ? $redis_data['cpu'] = $cpuIdle : null;
-            !is_null($diskutilization) ? $redis_data['diskutilization'] = $diskutilization : null;
-            !is_null($disk_total) ? $redis_data['disksize'] = $disk_total : null;
-            !is_null($iowait) ? $redis_data['iowait'] = $iowait : null;
-            !is_null($load15) ? $redis_data['load15'] = $load15 : null;
-        }
+        $redis_data = [
+            "hostId" => $hostid,
+            "hostName" => $host,
+            "updatetime" => $msec,
+            "colletcionstamp" => time(),
+            "ptype" => $ptype,
+            "uuid" => $uuid,
+
+            "cpu" => !is_null($cpuIdle) ?  $cpuIdle : $cpu_r,
+            "diskutilization" => !is_null($diskutilization) ?  $diskutilization : $diskutilization_r,
+            "disksize" => !is_null($disk_total) ?  $disk_total : $disksize_r,
+            "iowait" => !is_null($iowait) ?  $iowait : $iowait_r,
+            "load15" => !is_null($load15) ?  $load15 : $load15_r,
+        ];
+
+        $redis_data['typeFlag'] = ($ptype == 'kvm') ? 3: 2;
+        $redis_data['deviceType'] = null;
 
         //Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
         Redis::command('SET',[$hsname,json_encode($redis_data)]);
         Redis::command('EXPIRE',[$hsname,$expire]);
     }
 
-    public static function getVctopV1($uid,$request)
+    public static function vcentertop($uid,$request)
     {
         $ret = new \stdClass();
         $hosts = Vcenter::VDB()->table('hosts')
@@ -419,141 +452,52 @@ class Vcenter
         return $ret;
     }
 
-    public static function getVctop($uid,$request)
+    public static function kvmtop($uid,$request)
     {
         $ret = new \stdClass();
-        $hosts = Vcenter::VDB()->table('hosts')
-            ->leftJoin('clusters','hosts.cid','=','clusters.id')
-            ->leftJoin('datacenters','clusters.did','=','datacenters.id')
-            ->leftJoin('vcenters','datacenters.vid','=','vcenters.id')
-            ->where('vcenters.uid',$uid)->where('vcenters.id',$request->vcid)
-            ->select('hosts.id as hid','hosts.name as h_name','hosts.vm_num','hosts.hardware_model',
-                'hosts.hardware_vendor', 'hosts.product_name','hosts.product_version'
-            )->get();
-        $hids = [];
-        $res = [];
-        foreach($hosts as $host){
-            $stmp = new \stdClass();
-            $stmp->hid = $host->hid;
-            $stmp->h_name = $host->h_name;
-            $stmp->vm_num = $host->vm_num;
-            $stmp->hardware_model = $host->hardware_model;
-            $stmp->hardware_vendor = $host->hardware_vendor;
-            $stmp->product_name = $host->product_name;
-            $stmp->product_version = $host->product_version;
-            $stmp->vm = [];
-            $stmp->stores = [];
-            if(!isset($res[$host->hid])){
-                $res[$host->hid] = new \stdClass();
-            }
-            $res[$host->hid] = $stmp;
-            array_push($hids,$host->hid);
-        }
-
-        $vmdatas = Vcenter::VDB()->table('virtual_machines')
-            ->whereIn('hid',$hids)->get();
-        foreach($vmdatas as $data){
-            $vm = $res[$data->hid];
-            if(!isset($vm->vm)) $vm->vm = [];
-            $data->vmstore = Vcenter::VDB()->table('vm_stores')
-                ->leftJoin('datastores','vm_stores.storeid','=','datastores.id')
-                ->where('vm_stores.vmid',$data->id)->select('datastores.name','datastores.value')
-                ->get();
-            unset($data->id);unset($data->hid);unset($data->fid);unset($data->value);
-            array_push($vm->vm,$data);
-        }
-
-
-        $hsdatas = Vcenter::VDB()->table('host_stores')
-            ->leftJoin('datastores','host_stores.storeid','=','datastores.id')
-            ->whereIn('host_stores.hostid',$hids)->select('host_stores.hostid','datastores.name','datastores.value')
-            ->get();
-        foreach($hsdatas as $data){
-            $vm = $res[$data->hostid];
-            if(!isset($vm->stores)) $vm->stores = [];
-            unset($data->hostid);
-            array_push($vm->stores,$data);
-        }
-
-        $ret->vm_host = new \stdClass();
-        $ret->vm_host->nodes = [];
-        $ret->vm_host->edges = [];
-        $ret->vm_store = new \stdClass();
-        $ret->vm_store->nodes = [];
-        $ret->vm_store->edges = [];
-        $ret->host_store = new \stdClass();
-        $ret->host_store->nodes = [];
-        $ret->host_store->edges = [];
-        $id = 0;
-        foreach ($res as $host){
+        $ret->nodes = [];
+        $ret->edges = [];
+        $khost = Vcenter::VDB()->table('khosts')->where('userid',$uid)->where('id',$request->vcid)->first();
+        if(!$khost) return $ret;
+        $id = 1;
+        $stemp = new \stdClass();
+        $stemp->id = $id;
+        $stemp->hostName = $khost->host;
+        array_push($ret->nodes,$stemp);
+        $local_id = $id;
+        $kvms = Vcenter::VDB()->table('kvms')->where('khostid',$request->vcid)->get();
+        foreach ($kvms as $kvm){
             $id++;
-            $arr_model = explode(':',$host->hardware_model);
-            $title = new \stdClass();
-            $key = $arr_model[0];
-            $title->$key= isset($arr_model[1]) ? $arr_model[1] : '';
-            $title->virtual_machines = $host->vm_num;
-            $title->hardware_model = $host->hardware_model;
-            $title->hardware_vendor = $host->hardware_vendor;
-            $title->product_name = $host->product_name;
-            $title->product_version = $host->product_version;
+            $node = new \stdClass();
+            $node->id = $id;
+            $node->hostName = $kvm->name;
+            $node->info = new \stdClass();
+            $node->info->state = $kvm->state == Vcenter::VIR_DOMAIN_RUNNING ? 'running' : 'stop';
+            $node->info->MaxMen = ($kvm->MaxMem/1024) . 'MB';
+            $node->info->MenUsed = ($kvm->Memory/1024) . 'MB';
+            $node->info->CpuNum = $kvm->NrVirtCpu;
+            $node->info->CpuTime = ($kvm->CpuTime/1000000000) . 'seconds';
 
-            $stemp = new \stdClass();
-            $stemp->id = $id;
-            $stemp->hostName = $host->h_name;
-            $stemp->info = $title;
-            array_push($ret->vm_host->nodes,$stemp);
-            array_push($ret->host_store->nodes,$stemp);
-
-            $vms = $host->vm;
-            $hstores = $host->stores;
-            $h_nodeid = $id;
-            foreach ($hstores as $hstore){
-                $id ++;
-                $stemp = new \stdClass();
-                $stemp->id = $id;
-                $stemp->hostName = $hstore->name;
-                array_push($ret->host_store->nodes,$stemp);
-
-                $stemp2 = new \stdClass();
-                $stemp2->from = $h_nodeid;
-                $stemp2->to = $id;
-                //$stemp2->arrows = 'to';
-                array_push($ret->host_store->edges,$stemp2);
-            }
-            foreach ($vms as $vm){
-                $id ++;
-                $stemp = new \stdClass();
-                $stemp->id = $id;
-                $stemp->hostName = $vm->name;
-                array_push($ret->vm_host->nodes,$stemp);
-                array_push($ret->vm_store->nodes,$stemp);
-
-                $stemp2 = new \stdClass();
-                $stemp2->from = $h_nodeid;
-                $stemp2->to = $id;
-                //$stemp2->arrows = 'to';
-                array_push($ret->vm_host->edges,$stemp2);
-
-                $vmstores = $vm->vmstore;
-                $vm_nodeid = $id;
-                foreach ($vmstores as $vmstore){
-                    $id ++;
-                    $stemp = new \stdClass();
-                    $stemp->id = $id;
-                    $stemp->hostName = $vmstore->name;
-                    array_push($ret->vm_store->nodes,$stemp);
-
-                    $stemp2 = new \stdClass();
-                    $stemp2->from = $vm_nodeid;
-                    $stemp2->to = $id;
-                    //$stemp2->arrows = 'to';
-                    array_push($ret->vm_store->edges,$stemp2);
-                }
-            }
+            $edge = new \stdClass();
+            $edge->from = $local_id;
+            $edge->to = $id;
+            array_push($ret->nodes,$node);
+            array_push($ret->edges,$edge);
         }
 
         return $ret;
+    }
 
+    public static function getVctopV1($uid,$request)
+    {
+        $ret = new \stdClass();
+        if($request->type == 1){
+            $ret = Vcenter::vcentertop($uid,$request);
+        }else if($request->type == 2){
+            $ret = Vcenter::kvmtop($uid,$request);
+        }
+
+        return $ret;
     }
 
     public static function getVclist($uid)
@@ -582,6 +526,18 @@ class Vcenter
                       left join datacenters on clusters.did = datacenters.id
                   where datacenters.vid = vcenters.id and suspended = 1) as vm_suspended')
             )->where('vcenters.uid',$uid)->get();
+        $kvms = Vcenter::VDB()->table('khosts')
+            ->select('khosts.host','khosts.id','khosts.type',
+                DB::raw('(select count(khostid) as total from kvms 
+                      left join khosts on kvms.khostid = khosts.id 
+                  where khosts.userid = '.$uid.') as total'),
+                DB::raw('(select count(khostid) as running from kvms 
+                      left join khosts on kvms.khostid = khosts.id 
+                  where khosts.userid = '.$uid.' and state = '.Vcenter::VIR_DOMAIN_RUNNING.') as running'),
+                DB::raw('(select count(khostid) as stop from kvms 
+                      left join khosts on kvms.khostid = khosts.id 
+                  where khosts.userid = '.$uid.' and state <> '.Vcenter::VIR_DOMAIN_RUNNING.') as stop')
+                )->where('khosts.userid',$uid)->get();
         $data = [];
         foreach ($hosts as $host){
             $ret = new \stdClass();
@@ -597,7 +553,43 @@ class Vcenter
 
             array_push($data,$ret);
         }
+        foreach ($kvms as $kvm){
+            $ret = new \stdClass();
+            $ret->host = $kvm->host;
+            $ret->id = $kvm->id;
+            $ret->type = $kvm->type;
+            $ret->info = new \stdClass();
+            $ret->info->vm_total = (int)$kvm->total;
+            $ret->info->running = (int)$kvm->running;
+            $ret->info->stop = (int)$kvm->stop;
+
+            array_push($data,$ret);
+        }
         return $data;
+    }
+
+    public static function kvm($host,$uid,$data)
+    {
+        $khostid = md5(md5($uid).md5($host));
+        Vcenter::VDB()->table('kvms')->where('khostid',$khostid)->delete();
+        foreach ($data as $item){
+            $name = $item->Name;
+            $vmid = md5(md5($uid).md5($name));
+
+            $save_data = [
+                'id' => $vmid,
+                'khostid' => $khostid,
+                'name' => $name,
+                'state' => isset($item->Info->State) ? $item->Info->State : 0,
+                'MaxMem' => isset($item->Info->MaxMem) ? $item->Info->MaxMem : null,
+                'Memory' => isset($item->Info->Memory) ? $item->Info->Memory : null,
+                'NrVirtCpu' => isset($item->Info->NrVirtCpu) ? $item->Info->NrVirtCpu : null,
+                'CpuTime' => isset($item->Info->CpuTime) ? $item->Info->CpuTime : null,
+            ];
+            Vcenter::dbSave($vmid,'kvms',$save_data);
+            Vcenter::saveToApmsys($name,$uid,'kvm',3);
+            Vcenter::recevieDataPutRedis($name,$uid,'kvm');
+        }
     }
 
 }

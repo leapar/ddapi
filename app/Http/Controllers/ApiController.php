@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Dashboard;
 use App\Metric;
 use App\MyClass\MyApi;
+use App\MyClass\MyRedisCache;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
@@ -520,6 +521,7 @@ class ApiController  extends Controller
 
         return response()->json($ret);
     }
+
 
 }
 

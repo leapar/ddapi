@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\MyClass\Metric;
 use App\MyClass\MyApi;
+use App\MyClass\Vcenter;
 use Illuminate\Http\Request;
 use DB;
 use Log;
@@ -45,7 +46,7 @@ class SnmpController extends Controller
             Log::info("devicePoller = 未知device" . $uid);
             return $this->returnJson(404,'未知device');
         }
-        Log::info("devicePoller_data = " . json_encode($data));
+        //Log::info("devicePoller_data = " . json_encode($data));
         $device_id = $request->device_id;
         $data = [
             'version' => isset($data->version) ? $data->version : '',
@@ -57,6 +58,11 @@ class SnmpController extends Controller
         ];
 
         DB::table('host')->where('userid',$uid)->where('device_id',$device_id)->update($data);
+        $res = DB::table('host')->where('device_id',$device_id)->where('userid',$uid)->first();
+        if($res){
+            unset($res->device_id);
+            MyApi::recevieDataPutRedis($res->host_name,$uid,$res);
+        }
         return $this->returnJson(200,'success');
     }
 
@@ -81,6 +87,8 @@ class SnmpController extends Controller
         $ip = $data->hostname;
         $device_id= $data->device_id;
         $ptype= $data->os;
+        $pollerName = $data->pollerName;
+        $pollerIp = $request->getClientIp();
         $hostid = md5(md5($uid).md5($host));
         $save_data = [
             'host_name' => $host,
@@ -88,7 +96,9 @@ class SnmpController extends Controller
             'device_id'=>$device_id,
             'ptype'=>$ptype,
             'type_flag' => 1,
-            'update_time'=>date('Y-m-d H:i:s')
+            'update_time'=> date('Y-m-d H:i:s'),
+            'pollerName' => $pollerName,
+            'pollerIp' => $pollerIp
         ];
         $res = DB::table('host')->where('id',$hostid)->where('userid',$uid)->first();
         if(empty($res)){
@@ -420,26 +430,35 @@ class SnmpController extends Controller
             Log::info("metrics_uid = 未知device" . $uid);
             return $this->returnJson(404,'未知device');
         }
-
         $data = $this->getInput($request);
         if(empty($data)){
             Log::info("metrics_uid = 未能获取参数" . $uid . " | device_id = " . $request->device_id);
             return $this->returnJson(404,'未能获取参数');
         }
-        $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)->first();
-        if(empty($res)){
-            Log::info("metrics = 未找到主机 | UID = " . $uid . " | device_id = " . $request->device_id);
-            return $this->returnJson(404,'未找到主机');
-        }
-        $host = $res->host_name;
-        $arrPost = array();
-        $metric = new Metric($data,$host,$uid);
-        $arrPost = $metric->snmpMetric($arrPost);
 
-        if(count($arrPost) > 0) {
-            $metric->post2tsdb($arrPost);
+        if($request->has('poller_up') && $request->poller_up == 'poller_up'){
+            $metric = new Metric();
+            foreach ($data as &$option){
+                $option->tags->uid = $uid;
+            }
+            $metric->post2tsdb($data);
+        }else{
+            $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)->first();
+            if(empty($res)){
+                Log::info("metrics = 未找到主机 | UID = " . $uid . " | device_id = " . $request->device_id);
+                return $this->returnJson(404,'未找到主机');
+            }
+            $host = $res->host_name;
             $arrPost = array();
+            $metric = new Metric($data,$host,$uid);
+            $arrPost = $metric->snmpMetric($arrPost);
+
+            if(count($arrPost) > 0) {
+                $metric->post2tsdb($arrPost);
+                $arrPost = array();
+            }
         }
+
     }
 
     public function metricsCheck(Request $request)
@@ -473,24 +492,124 @@ class SnmpController extends Controller
 
     public function deviceInfo(Request $request)
     {
-        if(!$request->has('uid')){
-            Log::info("deviceInfo = 未知用户");
-            return $this->returnJson(404,'未知用户');
+        $datas = $request->getContent();
+        $datas = json_decode($datas);
+        if(empty($datas)){
+            return $this->returnJson(404,'缺少参数');
         }
-        $uid = $request->uid;
-        if(!$request->has('device_id')){
-            Log::info("deviceInfo = 未知device" . $uid);
-            return $this->returnJson(404,'未知device');
+        $data_arr = [];
+        $ret = [];
+        foreach ($datas as $data){
+            if($data->type_flag == 0){
+                /*$hostid = $data->hostid;
+                $stmp = new \stdClass();
+                $stmp->$hostid = new \stdClass();
+                array_push($ret,$stmp);*/
+            }else if($data->type_flag == 1){
+                if(!isset($data_arr['snmp'])) $data_arr['snmp'] = [];
+                array_push($data_arr['snmp'],$data->hostid);
+            }else if($data->type_flag == 2){
+                if($data->ptype == 'HostSystem'){
+                    if(!isset($data_arr['HostSystem'])) $data_arr['HostSystem'] = [];
+                    array_push($data_arr['HostSystem'],$data->hostid);
+                }else if($data->ptype == 'VirtualMachine'){
+                    if(!isset($data_arr['VirtualMachine'])) $data_arr['VirtualMachine'] = [];
+                    array_push($data_arr['VirtualMachine'],$data->hostid);
+                }
+            }else if($data->type_flag == 3){
+                if(!isset($data_arr['kvm'])) $data_arr['kvm'] = [];
+                array_push($data_arr['kvm'],$data->hostid);
+            }
+
+        }
+        if(isset($data_arr['snmp']) && !empty($data_arr['snmp'])){
+            $results = DB::table('host')->whereIn('id',$data_arr['snmp'])
+                ->select('id','ip','host_name','ptype','logo','version','features','hardware','serial','sysObjectID','pollerName','pollerIp')
+                ->get();
+            foreach ($results as $res){
+                $hostid = $res->id;
+                $stmp = new \stdClass();
+                $logo_arr = explode(".",$res->logo);
+                $features = $res->features ? '('.$res->features.')' : '';
+                if(in_array($res->ptype,['windows','linux','mac'])){
+                    $sys = $res->ptype;
+                }else{
+                    $sys = strtoupper($logo_arr[0]) . ' ' . $res->ptype;
+                }
+                $res->OperatingSystem =  $sys . ' ' . $res->version . $features;
+                unset($res->logo);unset($res->ptype);unset($res->id);
+                $stmp->$hostid = $res;
+                array_push($ret,$stmp);
+            }
+        }
+        if(isset($data_arr['HostSystem']) && !empty($data_arr['HostSystem'])){
+            $ress = Vcenter::VDB()->table('hosts')
+                ->leftJoin('clusters','hosts.cid','=','clusters.id')
+                ->leftJoin('datacenters','clusters.did','=','datacenters.id')
+                ->leftJoin('vcenters','datacenters.vid','=','vcenters.id')
+                ->whereIn('hosts.id',$data_arr['HostSystem'])->select('hosts.*','vcenters.pollerName','vcenters.pollerIp')->get();
+            foreach ($ress as $res){
+                $hostid = $res->id;
+                $stmp = new \stdClass();
+                $res2 = new \stdClass();
+                $res2->host_name = $res->name;
+                $res2->virtual_machines = $res->vm_num . '台';
+                $res2->hardware_model = $res->hardware_model;
+                $res2->hardware_vendor = $res->hardware_vendor;
+                $res2->product_name = $res->product_name;
+                $res2->product_version = $res->product_version;
+                $res2->pollerName = $res->pollerName;
+                $res2->pollerIp = $res->pollerIp;
+                $stmp->$hostid = $res2;
+                array_push($ret,$stmp);
+            }
+        }
+        if(isset($data_arr['VirtualMachine']) && !empty($data_arr['VirtualMachine'])){
+            $ress = Vcenter::VDB()->table('virtual_machines')
+                ->leftJoin('hosts','virtual_machines.hid','=','hosts.id')
+                ->leftJoin('clusters','hosts.cid','=','clusters.id')
+                ->leftJoin('datacenters','clusters.did','=','datacenters.id')
+                ->leftJoin('vcenters','datacenters.vid','=','vcenters.id')
+                ->whereIn('virtual_machines.id',$data_arr['VirtualMachine'])
+                ->select('virtual_machines.*','vcenters.pollerName','vcenters.pollerIp')->get();
+            foreach ($ress as $res){
+                $hostid = $res->id;
+                $stmp = new \stdClass();
+                $res2 = new \stdClass();
+                $res2->host_name = $res->name;
+                $res2->sysName = $res->sysName;
+                $res2->toolsInstalled = $res->toolsInstalled == 0 ? '未安装' : '已安装';
+                $res2->cpuUsage = $res->cpuUsage . 'MHz';
+                $res2->memUsage = $res->memUsage . 'MB';
+                $res2->diskUsage = number_format($res->diskUsage / (1024 * 1024 * 1024),2,".","") . 'GB';
+                $res2->pollerName = $res->pollerName;
+                $res2->pollerIp = $res->pollerIp;
+                $stmp->$hostid = $res2;
+                array_push($ret,$stmp);
+            }
+        }
+        if(isset($data_arr['kvm']) && !empty($data_arr['kvm'])){
+            $ress = Vcenter::VDB()->table('kvms')
+                ->leftJoin('khosts','kvms.khostid','=','khosts.id')
+                ->whereIn('kvms.id',$data_arr['kvm'])->select('kvms.*','khosts.pollerName','khosts.pollerIp')->get();
+            foreach ($ress as $res){
+                $hostid = $res->id;
+                $stmp = new \stdClass();
+                $res2 = new \stdClass();
+                $res2->host_name = $res->name;
+                $res2->state = ($res->state == Vcenter::VIR_DOMAIN_RUNNING) ? 'running' : 'stop';
+                $res2->MaxMem = ($res->MaxMem/1024) . 'MB';
+                $res2->MemUsed = ($res->Memory/1024) . 'MB';
+                $res2->CpuNum = $res->NrVirtCpu;
+                $res2->CpuTime = ($res->CpuTime/1000000000) . 'seconds';
+                $res2->pollerIp = $res->pollerIp;
+                $stmp->$hostid = $res2;
+                array_push($ret,$stmp);
+            }
         }
 
-        $res = DB::table('host')->where('userid',$uid)->where('device_id',$request->device_id)
-            ->select('ip','host_name','ptype','logo','type_flag','version','features','hardware','serial','sysObjectID','deviceType')
-            ->first();
-        if($res){
-            $logo_arr = explode(".",$res->logo);
-            $features = $res->features ? '('.$res->features.')' : '';
-            $res->OperatingSystem = strtoupper($logo_arr[0]) . ' ' . $res->ptype . ' ' . $res->version . $features;
-            return $this->returnJson(200,'success',$res);
+        if($ret){
+            return $this->returnJson(200,'success',$ret);
         }else{
             return $this->returnJson(200,'未找到设备信息');
         }

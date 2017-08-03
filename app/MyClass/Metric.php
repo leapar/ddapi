@@ -10,6 +10,7 @@ namespace App\MyClass;
 
 use Illuminate\Support\Facades\Cache;
 use Log;
+use DB;
 use Mockery\CountValidator\Exception;
 use Symfony\Component\Debug\Exception\FatalErrorException;
 use App\MyClass\Vcenter;
@@ -73,8 +74,12 @@ class Metric
         $sub->tags->host = $this->host;
         $sub->tags->uid = $this->uid;//1;//$metrics_in->uuid;
         if(isset($tag->device_name) && !empty($tag->device_name)) {
-            $num ++;
-            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
+            $value = $this->setTgv($tag->device_name);
+            if($value){
+                $num ++;
+                $sub->tags->device = $value;
+            }
+
         }
 
         if(isset($tag->tags)) {
@@ -82,52 +87,28 @@ class Metric
                 $tmps = explode(":",$value);
                 if(count($tmps) == 2 && $num < 6 && !empty($tmps[0]) && !empty($tmps[1])){
                     $tgk = $tmps[0];
-                    $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
-                    $num ++;
-                }
-                /*if(count($tmps) == 2) {
-                    //	Log::info("value===".$tmps[1]);
-                    if($tmps[0] == "instance"){
-                        $sub->tags->instance = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
+                    $value = $this->setTgv($tmps[1]);
+                    if($value){
+                        $num ++;
+                        $sub->tags->$tgk = $value;
                     }
-                }*/
+                }
             }
         }
 
-        //$this->setTags($metric);
         return $sub;
     }
 
     /**
      * 已经不使用待丢弃
      */
-    private function setTags($metric)
+    private function setTgv($tgv)
     {
-        $sub = new \stdClass();
-        $sub->metric = $metric[0];
-        $sub->timestamp = $metric[1];
-        $sub->value = $metric[2];
-        $tag = $metric[3];
-        $sub->tags = new \stdClass();//$metric[3];
-        $sub->tags->host = $this->host;
-        $sub->tags->uid = $this->uid;//1;//$metrics_in->uuid;
-        if(isset($tag->device_name) && !empty($tag->device_name)) {
-            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tag->device_name);//str_replace(array("{",":","*","}"), "_", $tag->device_name);//$tag->device_name;
+        $value = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tgv);
+        if(!empty($value)){
+            return $value;
         }
-        if(isset($tag->tags)) {
-            foreach($tag->tags as $value) {
-                $tmps = explode(":",$value);
-                $key = $tmps[0];
-                if(count($tmps) == 2) {
-                    //	Log::info("value===".$tmps[1]);
-                    //	Log::info("valuevalue===".str_replace(array("{","}"), "_", $tmps[1]));
-                    $sub->tags->$key = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
-                } else {
-                    $sub->tags->$key = "NULL";//$sub->tags->$tmps[0];
-                }
-            }
-        }
-        //array_push($this->tags,$sub);
+        return false;
     }
 
     public function getMetricByOS($arrPost)
@@ -182,6 +163,7 @@ class Metric
     //IO metric 数据
     private function createIOMetric($arr,$arrPost)
     {
+        if(!isset($this->metrics_in->ioStats)) return $arrPost;
         $ioStats = $this->metrics_in->ioStats;
         if(empty($ioStats)){
             return $arrPost;
@@ -294,7 +276,10 @@ class Metric
             $sub->tags->host = $item->host;
             $sub->tags->uid = $this->uid;
             if (isset($item->device_name) && !empty($item->device_name)) {
-                $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u", "", $item->device_name);
+                $value = $this->setTgv($item->device_name);
+                if($value){
+                    $sub->tags->device = $value;
+                }
             }
             if(isset($item->tags)) {
                 foreach($item->tags as $value) {
@@ -302,8 +287,11 @@ class Metric
 
                     if(count($tmps) == 2) {
                         //	Log::info("value===".$tmps[1]);
-                        if($tmps[0] == "instance"){
-                            $sub->tags->instance = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
+                        if($tmps[0] == "instance" && !empty($tmps[1])){
+                            $value = $this->setTgv($tmps[1]);
+                            if($value){
+                                $sub->tags->instance = $value;
+                            }
                         }
                     }
                 }
@@ -314,70 +302,6 @@ class Metric
             //$this->setSeriseTag($item);
         }
         return $arrPost;
-    }
-
-    /**
-     * 已经不使用待丢弃
-     */
-    private function setSeriseTag($item)
-    {
-        $sub = new \stdClass();
-        $sub->metric = $item->metric;
-        $sub->timestamp = $item->points[0][0];
-        $sub->value = $item->points[0][1];
-        $sub->tags = new \stdClass();//$metric[3];
-        $sub->tags->host = $item->host;
-        $sub->tags->uid = $this->uid;
-        if(isset($item->device_name) && !empty($item->device_name)) {
-            $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$item->device_name);
-        }
-        if(isset($item->tags)) {
-            foreach($item->tags as $value) {
-                $tmps = explode(":",$value);
-                $key = $tmps[0];
-                if(count($tmps) == 2) {
-                    //	Log::info("value===".$tmps[1]);
-                    $sub->tags->$key = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);//str_replace(array("{",":","*","}"), "_", $tmps[1]);
-                } else {
-                    $sub->tags->$key = "NULL";//$sub->tags->$tmps[0];
-                }
-            }
-        }
-        //array_push($this->tags,$sub);
-    }
-
-    /**
-     * 已经不使用待丢弃
-     */
-    public function setHostTag()
-    {
-        $host_tags = 'host-tags';
-        $host_tag = $this->metrics_in->$host_tags;
-        if(!isset($host_tag->system)) return;
-
-        foreach($host_tag->system as $val){
-            $res = explode(":",$val);
-            $key = $res[0];
-            $value = isset($res[1]) ? $res[1] : 'null';
-
-            $sub = new \stdClass();
-            $sub->$host_tags = 'host-tags';
-            $sub->tags = new \stdClass();//$metric[3];
-            $sub->tags->host = $this->host;
-            $sub->tags->uid = $this->uid;
-            $sub->tags->$host_tags = new \stdClass();
-            $sub->tags->$host_tags->$key = $value;
-
-            //array_push($this->tags,$sub);
-        }
-    }
-
-    /**
-     * 已经不使用待丢弃
-     */
-    public function getTags()
-    {
-        return $this->tags;
     }
 
     public function checktime($key,$time=null)
@@ -412,15 +336,18 @@ class Metric
         foreach($this->metrics_in as $item) {
             $sub = new \stdClass();
             $sub->metric = $item->metric;
-            $sub->timestamp = $item->timestamp;
+            $sub->timestamp = !empty($item->timestamp) ? $item->timestamp : time();
             $sub->value = $item->value;
             $sub->tags = new \stdClass();//$metric[3];
             $sub->tags->host = $this->host;
             $sub->tags->uid = $this->uid;
             $num = 2;
             if (isset($item->device_name) && !empty($item->device_name)) {
-                $sub->tags->device = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u", "", $item->device_name);
-                $num++;
+                $value = $this->setTgv($item->device_name);
+                if($value){
+                    $sub->tags->device = $value;
+                    $num++;
+                }
             }
             if(isset($item->tags)) {
                 foreach($item->tags as $value) {
@@ -428,8 +355,11 @@ class Metric
                     $tmps = explode(":",$value);
                     if(count($tmps) == 2 && $num < 6 && !empty($tmps[0]) && !empty($tmps[1])) {
                         $tgk = $tmps[0];
-                        $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tmps[1]);
-                        $num++;
+                        $value = $this->setTgv($tmps[1]);
+                        if($value){
+                            $sub->tags->$tgk = $value;
+                            $num++;
+                        }
                     }
                 }
             }
@@ -453,6 +383,9 @@ class Metric
     public function vcenterMetric($arrPost)
     {
         $redis_data = [];
+        $g_metric_service = [];
+        $g_metric_check = [];
+
         foreach($this->metrics_in as $item) {
             $host = null;
             $ptype = null;
@@ -460,7 +393,7 @@ class Metric
 
             $sub = new \stdClass();
             $sub->metric = $item->metric;
-            $sub->timestamp = $item->timestamp;
+            $sub->timestamp = !empty($item->timestamp) ? $item->timestamp : time();
             $sub->value = $item->value;
             $sub->tags = new \stdClass();//$metric[3];
             //$sub->tags->host = $this->host;
@@ -468,51 +401,125 @@ class Metric
             $num = 1;
             if(isset($item->tags)) {
                 foreach($item->tags as $tgk => $tgv) {
-
+                    if(empty($tgv) || empty($tgk)) continue;
                     if($tgk == 'HostSystem'){
                         $host = preg_replace("/\_/u",".",$tgv);
                         $ptype = $tgk;
+                        $sub->tags->host = $host;
+                        $num++;
                     }else if($tgk == 'VirtualMachine'){
                         $host = $tgv;
                         $ptype = $tgk;
+                        $sub->tags->host = $host;
+                        $num++;
                     }else{
-                        if($num < 6 ) {
-                            $sub->tags->$tgk = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tgv);
-                            $num++;
+
+                        if($num < 6) {
+                            $value = $this->setTgv($tgv);
+                            if($value){
+                                $sub->tags->$tgk = $value;
+                                $num++;
+                            }
                         }
                         if($tgk == 'hostUUID' || $tgk == 'vmUUID') $uuid = preg_replace("/[^\x{4e00}-\x{9fa5}A-Za-z0-9\.\_\-\/\xC2\xA0]/u","",$tgv);
                     }
                 }
             }
-            if(!is_null($host)){
-                $redis_data[$host] = [];
-                $redis_data[$host]['host'] = $host;
-                $redis_data[$host]['ptype'] = $ptype;
-                $redis_data[$host]['uuid'] = $uuid;
-                $redis_data[$host]['cpu_use'] = null;
-                $redis_data[$host]['disk_used'] = null;
-                $redis_data[$host]['disk_total'] = null;
-                $redis_data[$host]['cpu_wait'] = null;
-                $redis_data[$host]['cpu_used'] = null;
-                $redis_data[$host]['load15'] = null;
-                if($item->metric == 'cpu.usage.average')  $redis_data[$host]['cpu_use'] = $item->value;
-                if($item->metric == 'disk.used.latest')  $redis_data[$host]['disk_used'] = $item->value;
-                if($item->metric == 'disk.capacity.latest')  $redis_data[$host]['disk_total'] = $item->value;
-                if($item->metric == 'cpu.wait.summation')  $redis_data[$host]['cpu_wait'] = $item->value;
-                if($item->metric == 'cpu.used.summation')  $redis_data[$host]['cpu_used'] = $item->value;
-                if($item->metric == 'rescpu.actav15.latest')  $redis_data[$host]['load15'] = $item->value;
+
+            array_push($arrPost, $sub);
+
+            $arrPost = $this->checkarrPost($arrPost);
+
+            $redis_data = [];
+            $redis_data['cpu_use'] = null;
+            $redis_data['disk_used'] = null;
+            $redis_data['disk_total'] = null;
+            $redis_data['cpu_wait'] = null;
+            $redis_data['load15'] = null;
+            if($item->metric == 'cpu.usage.average')  $redis_data['cpu_use'] = $item->value;
+            if($item->metric == 'disk.used.latest')  $redis_data['disk_used'] = $item->value;
+            if($item->metric == 'disk.capacity.latest')  $redis_data['disk_total'] = $item->value;
+            if($item->metric == 'cpu.wait.summation')  $redis_data['cpu_wait'] = $item->value;
+            if($item->metric == 'rescpu.actav15.latest')  $redis_data['load15'] = $item->value;
+
+            $cpu_use = $redis_data['cpu_use'];
+            $diskutilization = $redis_data['disk_total'] && $redis_data['disk_total'] != 0 ?
+                                    ($redis_data['disk_used']/$redis_data['disk_total']) * 100 : null;
+            $disk_total = $redis_data['disk_total'];
+            $iowait = $redis_data['cpu_wait'];
+            $load15 = $redis_data['load15'];
+            if($cpu_use || $diskutilization || $disk_total || $iowait || $load15){
+                //Log::info("vcenter_redis host = {$host} -- cpu_use = {$cpu_use} -- diskutilization = {$diskutilization} -- disk_total = {$disk_total} -- iowait = {$iowait} -- load15 = {$load15}");
+                Vcenter::recevieDataPutRedis($host,$this->uid,$ptype,$uuid,$cpu_use,$diskutilization,$disk_total,$iowait,$load15);
             }
-            if(!empty($redis_data)){
-                foreach ($redis_data as $data){
-                    $host = $data['host'];
-                    $ptype = $data['ptype'];
-                    $uuid = $data['uuid'];
-                    $cpu_use = $data['cpu_use'];
-                    $diskutilization = $data['disk_total'] != 0 ? ($data['disk_used']/$data['disk_total']) * 100 : 0;
-                    $disk_total = $data['disk_total'];
-                    $iowait = $data['cpu_used'] != 0 ? ($data['cpu_wait']/$data['cpu_used']) * 100 : 0;
-                    $load15 = $data['load15'];
-                    Vcenter::recevieDataPutRedis($host,$this->uid,$ptype,$uuid,$cpu_use,$diskutilization,$disk_total,$iowait,$load15);
+
+
+            if(!isset($g_metric_service[$host])) $g_metric_service[$host] = [];
+            if(!isset($g_metric_check[$host])) $g_metric_check[$host] = [];
+            $m_service = explode('.',$item->metric);
+            if(!in_array($m_service[0],$g_metric_service[$host])){
+                $std = new \stdClass();
+                $std->status = 0;
+                $std->tags = ["check:".$m_service[0]];
+                $std->timestamp = time();
+                $std->check = "datadog.agent.check_status";
+                $std->message = null;
+                array_push($g_metric_check[$host],$std);
+                array_push($g_metric_service[$host],$m_service[0]);
+            }
+        }
+
+        foreach ($g_metric_check as $host => $check){
+            $hostid = md5(md5($this->uid).md5($host));
+
+            DB::table('metric_host')->where('hostid',$hostid)->delete();
+            DB::table('metric_host')->insert(['hostid'=>$hostid,'service_checks'=>json_encode($check)]);
+        }
+
+        return $arrPost;
+    }
+
+
+    public function kvmMetric($arrPost)
+    {
+        $g_metric_service = [];
+        $g_metric_check = [];
+        foreach($this->metrics_in as $item) {
+            $sub = new \stdClass();
+            $met = explode(".",$item->metric);
+            unset($met[0]);
+            $metric_name = implode(".",$met);
+            $sub->metric = $metric_name;
+            $sub->timestamp = empty($item->timestamp) ? time() : $item->timestamp;
+            $sub->value = $item->value;
+            $sub->tags = new \stdClass();//$metric[3];
+            $sub->tags->uid = $this->uid;
+            $num = 1;
+            if(isset($item->tags)) {
+                foreach($item->tags as $tgk => $tgv) {
+                    if($num < 6 && !empty($tgk) && !empty($tgv)) {
+                        $value = $this->setTgv($tgv);
+                        if($value){
+                            $sub->tags->$tgk = $value;
+                            $num++;
+
+                            if($tgk == 'host'){
+                                if(!isset($g_metric_service[$value])) $g_metric_service[$value] = [];
+                                if(!isset($g_metric_check[$value])) $g_metric_check[$value] = [];
+                                $m_service = explode('.',$metric_name);
+                                if(!in_array($m_service[0],$g_metric_service[$value])){
+                                    $std = new \stdClass();
+                                    $std->status = 0;
+                                    $std->tags = ["check:".$m_service[0]];
+                                    $std->timestamp = time();
+                                    $std->check = "datadog.agent.check_status";
+                                    $std->message = null;
+                                    array_push($g_metric_check[$value],$std);
+                                    array_push($g_metric_service[$value],$m_service[0]);
+                                }
+                            }
+                        }
+                    }
                 }
             }
             array_push($arrPost, $sub);
@@ -520,6 +527,12 @@ class Metric
             $arrPost = $this->checkarrPost($arrPost);
         }
 
+        foreach ($g_metric_check as $host => $check){
+            $hostid = md5(md5($this->uid).md5($host));
+
+            DB::table('metric_host')->where('hostid',$hostid)->delete();
+            DB::table('metric_host')->insert(['hostid'=>$hostid,'service_checks'=>json_encode($check)]);
+        }
         return $arrPost;
     }
 

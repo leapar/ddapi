@@ -281,6 +281,8 @@ class MetricController extends Controller
                 "uuid" => $data['uuid']
             ];
         }
+        $redis_data['type_flag'] = 0;
+        $redis_data['deviceType'] = '';
 
         if(isset($metrics_in->cpuWait)) $redis_data['iowait'] = $metrics_in->cpuWait;
         if(isset($metrics_in->$load15)) $redis_data['load15'] = $metrics_in->$load15;

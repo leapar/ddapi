@@ -99,9 +99,15 @@ $app->group(['prefix' => 'vcenter/v1','namespace'=>'App\Http\Controllers'],funct
     $app->post('metrics','VcenterController@metrics');
 });
 
+$app->group(['prefix' => 'kvm/v1','namespace'=>'App\Http\Controllers'],function () use ($app) {
+    $app->post('host','KvmController@host');
+    $app->post('metrics','KvmController@metrics');
+    $app->post('poller','KvmController@poller');
+});
+
 //内部地址
 $app->group(['prefix' => 'p1/local','namespace'=>'App\Http\Controllers'],function() use ($app) {
     //设备信息
-    $app->get('device_info','SnmpController@deviceInfo');
+    $app->post('device_info','SnmpController@deviceInfo');
 });
 

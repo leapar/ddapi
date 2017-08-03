@@ -45,23 +45,31 @@ class VcenterController extends Controller
         }
         $host = $request->host;
         $data = $this->getInput($request);
-        if(empty($data)){
+        if(empty($data) || !isset($data->list) || !isset($data->agent_Check)){
             Log::info("vcenter_finder = 未能获取参数 host=" . $host);
             return $this->returnJson(404,'未能获取参数');
         }
-
+        //Log::info("#################### vcenter_finder ==".json_encode($data));
+        $poller_data = $data->list;
+        $pollerName = $poller_data->pollerName;
+        $pollerIp = $poller_data->pollerIp;
         //物理主机 vcenter
         $vid = md5(md5($uid).md5($host));
-        $res = Vcenter::VDB()->table('vcenters')->where('id',$vid)->first();
-        if(!$res){
-            Vcenter::VDB()->table('vcenters')->insert(['id' => $vid,'uid' => $uid,'host' => $host]);
-        }
+        Vcenter::VDB()->table('vcenters')->where('id',$vid)->delete();
+        Vcenter::VDB()->table('vcenters')->insert(['id' => $vid,'uid' => $uid,'host' => $host,'pollerName' => $pollerName,'pollerIp' => $pollerIp]);
 
-        foreach($data as $item){
-            $dataCenter = $item->dataCenter;
-            Vcenter::saveVcenter($dataCenter,$uid,$vid);
-            //Vcenter::switchByType($item,$uid,$vid);
-        }
+
+        $arrPost = [];
+        $metric = new Metric();
+
+        $dataCenter = $poller_data->dataCenter;
+        $arrPost = Vcenter::saveVcenter($dataCenter,$uid,$vid,$arrPost,$metric);
+
+        $agent_check = $data->agent_Check;
+        $agent_check->tags->uid = $uid;
+        array_push($arrPost,$agent_check);
+
+        $metric->post2tsdb($arrPost);
     }
 
     public function metrics(Request $request)
@@ -118,13 +126,11 @@ class VcenterController extends Controller
             Log::info("vcenter_top = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
-        if(!$request->has('vcid')){
+        if(!$request->has('vcid') || !$request->has('type')){
             Log::info("vcenter_top = vcid" . $uid);
             return $this->returnJson(404,'参数错误');
         }
-        //$ret = Vcenter::getVctop($uid,$request);
         $ret = Vcenter::getVctopV1($uid,$request);
-        //return response()->json($ret);
         return $this->returnJson(200,'success',$ret);
 
     }
