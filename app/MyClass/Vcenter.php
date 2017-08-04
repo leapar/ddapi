@@ -472,11 +472,12 @@ class Vcenter
             $node->id = $id;
             $node->hostName = $kvm->name;
             $node->info = new \stdClass();
-            $node->info->state = $kvm->state == Vcenter::VIR_DOMAIN_RUNNING ? 'running' : 'stop';
+            //$node->info->state = $kvm->state == Vcenter::VIR_DOMAIN_RUNNING ? 'running' : 'stop';
             $node->info->MaxMen = ($kvm->MaxMem/1024) . 'MB';
             $node->info->MenUsed = ($kvm->Memory/1024) . 'MB';
             $node->info->CpuNum = $kvm->NrVirtCpu;
             $node->info->CpuTime = ($kvm->CpuTime/1000000000) . 'seconds';
+            $node->status =  $kvm->state;
 
             $edge = new \stdClass();
             $edge->from = $local_id;
