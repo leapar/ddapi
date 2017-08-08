@@ -230,7 +230,7 @@ class MyRedisCache
                 $res->name = $metric;
                 $m = new \stdClass();
                 $m->metric = $metric;
-                $m->tags = [];
+                $m->tags = ["scope"];
                 $m->rate = false;
                 $m->aggregator = "avg";
                 $m->by = null;

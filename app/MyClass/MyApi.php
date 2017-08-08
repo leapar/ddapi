@@ -763,6 +763,7 @@ class MyApi
         //$hsname = "HOST_DATA_".$uid;
         $hsname = "HOST_DATA_".$uid."_".$host;
         $redis_data = json_decode(Redis::command('GET', [$hsname]),true);
+
         $cpu_r= isset($redis_data['cpu'])?$redis_data['cpu']:null;
         $diskutilization_r= isset($redis_data['diskutilization'])?$redis_data['diskutilization']:null;
         $disksize_r= isset($redis_data['disksize'])?$redis_data['disksize']:null;
@@ -777,25 +778,17 @@ class MyApi
                 "ptype" => $data->os,
                 "ip" => $data->hostname,
                 "device_id" => $data->device_id,
-
-                "cpu" => $cpu_r,
-                "diskutilization" => $diskutilization_r,
-                "disksize" => $disksize_r,
-                "iowait" => $iowait_r,
-                "load15" => $load15_r,
             ];
         }
 
-        if(!empty($redis_data)){
-            $redis_data['cpu'] = isset($data->cpuIdle) ?  $data->cpuIdle : $cpu_r;
-            $redis_data['diskutilization'] = isset($data->diskutilization) ? $data->diskutilization : $diskutilization_r;
-            $redis_data['disksize'] = isset($data->disk_total) ?  $data->disk_total : $disksize_r;
-            $redis_data['iowait'] = isset($data->iowait) ?  $data->iowait : $iowait_r;
-            $redis_data['load15'] = isset($data->load15) ?  $data->load15 : $load15_r;
-        }
-
+        $redis_data['cpu'] = isset($data->cpuIdle) ?  $data->cpuIdle : $cpu_r;
+        $redis_data['diskutilization'] = isset($data->diskutilization) ? $data->diskutilization : $diskutilization_r;
+        $redis_data['disksize'] = isset($data->disk_total) ?  $data->disk_total : $disksize_r;
+        $redis_data['iowait'] = isset($data->iowait) ?  $data->iowait : $iowait_r;
+        $redis_data['load15'] = isset($data->load15) ?  $data->load15 : $load15_r;
         $redis_data['typeFlag'] = 1;
         $redis_data['deviceType'] = isset($data->deviceType) ? $data->deviceType : null;
+        $redis_data['updatetime'] = $msec;
 
         //Redis::command('HSET',[$hsname,$hostid,json_encode($redis_data)]);
         Redis::command('SET',[$hsname,json_encode($redis_data)]);
