@@ -117,7 +117,7 @@ class MetricController extends Controller
                 $this->dispatch($metricjobV1);
             }
 
-            $res = $my_metric->checktime($hostid.'intake_redis',1);
+            //$res = $my_metric->checktime($hostid.'intake_redis',1);
             //if($res){
                 $this->hostRedis($metrics_in,$host,$uid,$cpuIdle,$disk_total,$disk_used);
             //}
@@ -168,7 +168,7 @@ class MetricController extends Controller
             }
 
             $hostid = md5(md5($uid).md5($host));
-            $res = $my_metric->checktime($hostid.'intake_redis',1);
+            //$res = $my_metric->checktime($hostid.'intake_redis',1);
             //if($res){
                 $cpuIdle = 0;
                 $disk_total = 0;
@@ -281,7 +281,7 @@ class MetricController extends Controller
                 "uuid" => $data['uuid']
             ];
         }
-        $redis_data['type_flag'] = 0;
+        $redis_data['typeFlag'] = 0;
         $redis_data['deviceType'] = '';
 
         if(isset($metrics_in->cpuWait)) $redis_data['iowait'] = $metrics_in->cpuWait;

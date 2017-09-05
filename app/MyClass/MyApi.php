@@ -795,108 +795,264 @@ class MyApi
         Redis::command('EXPIRE',[$hsname,$expire]);
 
     }
+
+    public static function portTopDataV2($uid)
+    {
+        $cache_key = 'device_top_data'.$uid;
+        //Cache::forget($cache_key);
+        if(Cache::has($cache_key)){
+            $ret = Cache::get($cache_key);
+        }else{
+            $lists1 = DB::table('ipv4_mac')
+                ->leftJoin(DB::raw('ports'), function ($join) {
+                    $join->on('ipv4_mac.port_id','=','ports.port_id');
+                })
+                ->leftJoin(DB::raw('ports as remote_ports'), function ($join) {
+                    $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress');
+                })
+                ->where('ipv4_mac.userid',$uid)
+                ->whereNotNull('remote_ports.device_id')
+                ->where('ports.device_id','<>','remote_ports.device_id')//排除自己连自己
+                ->whereNotIn('ipv4_mac.mac_address',['000000000000','ffffffffffff'])
+                ->orderBy('ipv4_mac.device_id','asc')
+                ->groupBy('ports.device_id','remote_ports.device_id','ipv4_mac.ipv4_address','ipv4_mac.port_id') //排除连个设备间多条链接
+                ->select('ipv4_mac.*','remote_ports.device_id as remote_ports_device_id','ports.ifName as port_name','ports.ifDescr as port_name2','remote_ports.ifName as remote_port_name','remote_ports.ifDescr as remote_port_name2')
+                ->get()->toArray();
+
+            $lists2 = DB::table('ipv4_mac')
+                ->leftJoin(DB::raw('ports'), function ($join) {
+                    $join->on('ipv4_mac.port_id','=','ports.port_id');
+                })
+                ->leftJoin(DB::raw('ports as remote_ports'), function ($join) {
+                    $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress');
+                })
+                ->where('ipv4_mac.userid',$uid)
+                ->whereNull('remote_ports.device_id')//非系统设备
+                ->whereNotIn('ipv4_mac.mac_address',['000000000000','ffffffffffff'])
+                ->orderBy('ipv4_mac.device_id','asc')
+                ->groupBy('ports.device_id','remote_ports.device_id','ipv4_mac.ipv4_address','ipv4_mac.port_id') //排除连个设备间多条链接
+                ->select('ipv4_mac.*','remote_ports.device_id as remote_ports_device_id','ports.ifName as port_name','ports.ifDescr as port_name2','remote_ports.ifName as remote_port_name','remote_ports.ifDescr as remote_port_name2')
+                ->get()->toArray();
+
+            $devices = DB::table('host')
+                ->where('userid',$uid)->whereNotNull('device_id')
+                ->orderBy('device_id','asc')
+                ->get();
+
+            $device_ids = [];
+            $device_ips = [];
+            $device_host = [];
+            $os_arr = ['windows','linux'];
+            $ret = new \stdClass();
+            $ret->nodes = [];
+            $ret->edges = [];
+            $id = 0;
+            foreach($devices as $item){
+                if(in_array($item->ptype,$os_arr)) continue;
+                $id ++;
+                $stemp = new \stdClass();
+                $stemp->id = $id;
+                $stemp->hostName = $item->host_name;
+                $stemp->ip = $item->ip;
+
+                $stemp->logo = $item->logo;
+                $stemp->deviceType = $item->deviceType;
+                $stemp_2 = new \stdClass();
+                $stemp_2->sysObjectId = $item->sysObjectID;
+                $stemp_2->hardware = $item->hardware;
+                $logo_arr = explode(".",$item->logo);
+                $features = $item->features ? '('.$item->features.')' : '';
+                $stemp_2->OperatingSystem = strtoupper($logo_arr[0]) . ' ' . $item->ptype . ' ' . $item->version . $features;
+                $stemp_2->serial = $item->serial;
+                $stemp_2->version = $item->version;
+
+                $stemp->info = $stemp_2;
+                $stemp->shape = 'circle';
+                $stemp->group = $id;
+                $stemp->status = $item->deviceStatus;
+                array_push($ret->nodes,$stemp);
+
+                $device_ids[$item->device_id] = $id;
+                array_push($device_ips,$item->ip);
+            }
+            foreach ($lists1 as $item){
+                if(isset($device_ids[$item->remote_ports_device_id])){
+                    if (!isset($device_ids[$item->device_id])) continue;
+                    $local_port_name = $item->port_name;
+                    if (empty($item->port_name)) $local_port_name = $item->port_name2;
+                    $remote_port_name = $item->remote_port_name;
+                    if (empty($item->remote_port_name)) $remote_port_name = $item->remote_port_name2;
+                    $edege_title = empty($item->remote_port_name2) ? $local_port_name : $local_port_name . ' > ' . $remote_port_name;
+
+                    $local_id = $device_ids[$item->device_id];
+                    $to = $device_ids[$item->remote_ports_device_id];
+                    if ($local_id == $to || isset($device_host[$local_id.'_'.$to])) continue;
+                    $stemp2 = new \stdClass();
+                    $stemp2->from = $local_id;
+                    $stemp2->to = $to;
+                    $stemp2->port = $item->port_id;
+                    $stemp2->portName = $edege_title;
+                    array_push($ret->edges, $stemp2);
+                    $device_host[$local_id.'_'.$to] = $item->port_id;
+                }else{
+                    if(in_array($item->ipv4_address,$device_ips)) continue;
+                    $id++;
+                    $stemp = new \stdClass();
+                    $stemp->id = $id;
+                    $stemp->ip = $item->ipv4_address;
+                    array_push($ret->nodes,$stemp);
+
+                    array_push($device_ips,$item->ipv4_address);
+
+                    if (!isset($device_ids[$item->device_id])) continue;
+                    $local_port_name = $item->port_name;
+                    if (empty($item->port_name)) $local_port_name = $item->port_name2;
+                    $remote_port_name = $item->remote_port_name;
+                    if (empty($item->remote_port_name)) $remote_port_name = $item->remote_port_name2;
+                    $edege_title = empty($item->remote_port_name2) ? $local_port_name : $local_port_name . ' > ' . $remote_port_name;
+
+                    $local_id = $device_ids[$item->device_id];
+                    if ($local_id == $id) continue;
+                    $stemp2 = new \stdClass();
+                    $stemp2->from = $local_id;
+                    $stemp2->to = $id;
+                    $stemp2->port = $item->port_id;
+                    $stemp2->portName = $edege_title;
+                    array_push($ret->edges, $stemp2);
+                }
+            }
+            foreach ($lists2 as $item){
+                if(in_array($item->ipv4_address,$device_ips)) continue;
+                $id++;
+                $stemp = new \stdClass();
+                $stemp->id = $id;
+                $stemp->ip = $item->ipv4_address;
+                array_push($ret->nodes,$stemp);
+
+                array_push($device_ips,$item->ipv4_address);
+
+                if (!isset($device_ids[$item->device_id])) continue;
+                $local_port_name = $item->port_name;
+                if (empty($item->port_name)) $local_port_name = $item->port_name2;
+                $remote_port_name = $item->remote_port_name;
+                if (empty($item->remote_port_name)) $remote_port_name = $item->remote_port_name2;
+                $edege_title = empty($item->remote_port_name2) ? $local_port_name : $local_port_name . ' > ' . $remote_port_name;
+
+                $local_id = $device_ids[$item->device_id];
+                if ($local_id == $id) continue;
+                $stemp2 = new \stdClass();
+                $stemp2->from = $local_id;
+                $stemp2->to = $id;
+                //$stemp2->arrows = 'to';
+                $stemp2->port = $item->port_id;
+                //$stemp2->portName = empty($item->port_name)? '':$item->port_name;
+                $stemp2->portName = $edege_title;
+                array_push($ret->edges, $stemp2);
+            }
+            Cache::put($cache_key,$ret,30);
+        }
+
+        return $ret;
+    }
     /*
      * 获取port top数据
      */
     public static function portTopData($uid)
     {
-        $lists1 = DB::table('ipv4_mac')
-            ->leftJoin(DB::raw('ports'), function ($join) {
-                $join->on('ipv4_mac.port_id','=','ports.port_id');
-            })
-            ->leftJoin(DB::raw('ports as remote_ports'), function ($join) {
-                $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress');
-            })
-            ->where('ipv4_mac.userid',$uid)
-            ->whereNotNull('remote_ports.device_id')
-            ->where('ports.device_id','<>','remote_ports.device_id')//排除自己连自己
-            ->whereNotIn('ipv4_mac.mac_address',['000000000000','ffffffffffff'])
-            ->orderBy('ipv4_mac.device_id','asc')
-            ->groupBy('ports.device_id','remote_ports.device_id') //排除连个设备间多条链接
-            ->select('ipv4_mac.*','ports.ifName as port_name','ports.ifDescr as port_name2','remote_ports.ifName as remote_port_name','remote_ports.ifDescr as remote_port_name2')
-            ->get()->toArray();
-        $lists2 = DB::table('ipv4_mac')
-            ->leftJoin(DB::raw('ports'), function ($join) {
-                $join->on('ipv4_mac.port_id','=','ports.port_id');
-            })
-            ->leftJoin(DB::raw('ports as remote_ports'), function ($join) {
-                $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress');
-            })
-            ->where('ipv4_mac.userid',$uid)
-            ->whereNull('remote_ports.device_id')//非系统设备
-            ->whereNotIn('ipv4_mac.mac_address',['000000000000','ffffffffffff'])
-            ->orderBy('ipv4_mac.device_id','asc')
-            //->groupBy('ports.device_id','remote_ports.device_id') //排除连个设备间多条链接
-            ->select('ipv4_mac.*','ports.ifName as port_name','ports.ifDescr as port_name2','remote_ports.ifName as remote_port_name','remote_ports.ifDescr as remote_port_name2')
-            ->get()->toArray();
-        $lists = array_merge($lists1,$lists2);
-        $devices = DB::table('host')
-            ->where('userid',$uid)->whereNotNull('device_id')
-            ->orderBy('device_id','asc')
-            ->get();
-        $device_ids = [];
-        $device_ips = [];
-        $device_host = [];
-        $mac_ips = [];
-        $mac_host = [];
-        $os_arr = ['windows','linux'];
-        $ret = new \stdClass();
-        $ret->nodes = [];
-        $ret->edges = [];
-        $id = 0;
-        foreach($devices as $item){
-            if(in_array($item->ptype,$os_arr)) continue;
-            $id ++;
-            $stemp = new \stdClass();
-            $stemp->id = $id;
-            $stemp->hostName = $item->host_name;
-            //$stemp->value = $item->device_id;
-            $stemp->ip = $item->ip;
+        $cache_key = 'device_top_data'.$uid;
+        //if(Cache::has($cache_key)){
+            $ret = Cache::get($cache_key);
+        //}else{
+            $lists1 = DB::table('ipv4_mac')
+                ->leftJoin(DB::raw('ports'), function ($join) {
+                    $join->on('ipv4_mac.port_id','=','ports.port_id');
+                })
+                ->leftJoin(DB::raw('ports as remote_ports'), function ($join) {
+                    $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress');
+                })
+                ->where('ipv4_mac.userid',$uid)
+                ->whereNotNull('remote_ports.device_id')
+                ->where('ports.device_id','<>','remote_ports.device_id')//排除自己连自己
+                ->whereNotIn('ipv4_mac.mac_address',['000000000000','ffffffffffff'])
+                ->orderBy('ipv4_mac.device_id','asc')
+                ->groupBy('ports.device_id','remote_ports.device_id') //排除连个设备间多条链接
+                ->select('ipv4_mac.*','remote_ports.device_id as remote_ports_device_id','ports.ifName as port_name','ports.ifDescr as port_name2','remote_ports.ifName as remote_port_name','remote_ports.ifDescr as remote_port_name2')
+                ->get()->toArray();
 
-            $stemp->logo = $item->logo;
-            $stemp->deviceType = $item->deviceType;
-            $stemp_2 = new \stdClass();
-            $stemp_2->sysObjectId = $item->sysObjectID;
-            $stemp_2->hardware = $item->hardware;
-            $logo_arr = explode(".",$item->logo);
-            $features = $item->features ? '('.$item->features.')' : '';
-            $stemp_2->OperatingSystem = strtoupper($logo_arr[0]) . ' ' . $item->ptype . ' ' . $item->version . $features;
-            $stemp_2->serial = $item->serial;
-            $stemp_2->version = $item->version;
+            $lists2 = DB::table('ipv4_mac')
+                ->leftJoin(DB::raw('ports'), function ($join) {
+                    $join->on('ipv4_mac.port_id','=','ports.port_id');
+                })
+                ->leftJoin(DB::raw('ports as remote_ports'), function ($join) {
+                    $join->on('ipv4_mac.mac_address','=','remote_ports.ifPhysAddress');
+                })
+                ->where('ipv4_mac.userid',$uid)
+                ->whereNull('remote_ports.device_id')//非系统设备
+                ->whereNotIn('ipv4_mac.mac_address',['000000000000','ffffffffffff'])
+                ->orderBy('ipv4_mac.device_id','asc')
+                ->groupBy('ports.device_id','remote_ports.device_id') //排除连个设备间多条链接
+                ->select('ipv4_mac.*','remote_ports.device_id as remote_ports_device_id','ports.ifName as port_name','ports.ifDescr as port_name2','remote_ports.ifName as remote_port_name','remote_ports.ifDescr as remote_port_name2')
+                ->get()->toArray();
 
-            $stemp->info = $stemp_2;
-            $stemp->shape = 'circle';
-            $stemp->group = $id;
-            array_push($ret->nodes,$stemp);
+            $lists = array_merge($lists1,$lists2);
+            $devices = DB::table('host')
+                ->where('userid',$uid)->whereNotNull('device_id')
+                ->orderBy('device_id','asc')
+                ->get();
+            $device_ids = [];
+            $device_ips = [];
+            $device_host = [];
+            $mac_ips = [];
+            $mac_host = [];
+            $os_arr = ['windows','linux'];
+            $ret = new \stdClass();
+            $ret->nodes = [];
+            $ret->edges = [];
+            $id = 0;
+            foreach($devices as $item){
+                if(in_array($item->ptype,$os_arr)) continue;
+                $id ++;
+                $stemp = new \stdClass();
+                $stemp->id = $id;
+                $stemp->hostName = $item->host_name;
+                //$stemp->value = $item->device_id;
+                $stemp->ip = $item->ip;
 
-            $device_ids[$item->device_id] = $id;
-            array_push($device_ips,$item->ip);
-            $device_host[$item->ip] = $id;
-        }
-        foreach($lists as $item){
-            if(!isset($device_ids[$item->device_id])) continue;
-            $local_port_name = $item->port_name;
-            if(empty($item->port_name)) $local_port_name = $item->port_name2;
-            $remote_port_name = $item->remote_port_name;
-            if(empty($item->remote_port_name)) $remote_port_name = $item->remote_port_name2;
+                $stemp->logo = $item->logo;
+                $stemp->deviceType = $item->deviceType;
+                $stemp_2 = new \stdClass();
+                $stemp_2->sysObjectId = $item->sysObjectID;
+                $stemp_2->hardware = $item->hardware;
+                $logo_arr = explode(".",$item->logo);
+                $features = $item->features ? '('.$item->features.')' : '';
+                $stemp_2->OperatingSystem = strtoupper($logo_arr[0]) . ' ' . $item->ptype . ' ' . $item->version . $features;
+                $stemp_2->serial = $item->serial;
+                $stemp_2->version = $item->version;
 
-            $edege_title = empty($item->remote_port_name2) ? $local_port_name : $local_port_name . ' > ' . $remote_port_name;
+                $stemp->info = $stemp_2;
+                $stemp->shape = 'circle';
+                $stemp->group = $id;
+                array_push($ret->nodes,$stemp);
 
-            $local_id = $device_ids[$item->device_id];
-            if(in_array($item->ipv4_address,$device_ips)){
-                $to = $device_host[$item->ipv4_address];
-                if($local_id == $to) continue;
-                $stemp2 = new \stdClass();
-                $stemp2->from = $local_id;
-                $stemp2->to = $to;
-                //$stemp2->arrows = 'to';
-                $stemp2->port = $item->port_id;
-                //$stemp2->portName = empty($item->port_name)? '':$item->port_name;
-                $stemp2->portName = $edege_title;
-                array_push($ret->edges,$stemp2);
-            }else{
-                if(in_array($item->ipv4_address,$mac_ips)){
-                    $to = $mac_host[$item->ipv4_address];
+                $device_ids[$item->device_id] = $id;
+                array_push($device_ips,$item->ip);
+                $device_host[$item->ip] = $id;
+            }
+            foreach($lists as $item){
+                if(!isset($device_ids[$item->device_id])) continue;
+                $local_port_name = $item->port_name;
+                if(empty($item->port_name)) $local_port_name = $item->port_name2;
+                $remote_port_name = $item->remote_port_name;
+                if(empty($item->remote_port_name)) $remote_port_name = $item->remote_port_name2;
+
+                $edege_title = empty($item->remote_port_name2) ? $local_port_name : $local_port_name . ' > ' . $remote_port_name;
+
+                $local_id = $device_ids[$item->device_id];
+                if(in_array($item->ipv4_address,$device_ips)){ //设备间链接
+                //if(isset($device_ids[$item->remote_ports_device_id]) && !empty($device_ids[$item->remote_ports_device_id])){
+                    $to = $device_host[$item->ipv4_address];
+                    //$to = $device_ids[$item->remote_ports_device_id];
+                    if($local_id == $to) continue;
                     $stemp2 = new \stdClass();
                     $stemp2->from = $local_id;
                     $stemp2->to = $to;
@@ -906,28 +1062,43 @@ class MyApi
                     $stemp2->portName = $edege_title;
                     array_push($ret->edges,$stemp2);
                 }else{
-                    $id++;
-                    $stemp = new \stdClass();
-                    $stemp->id = $id;
-                    $stemp->ip = $item->ipv4_address;
-                    $stemp->group = $local_id;
-                    //$stemp->title = $item->ipv4_address;
-                    array_push($ret->nodes,$stemp);
+                    if(in_array($item->ipv4_address,$mac_ips)){
+                        $to = $mac_host[$item->ipv4_address];
+                        $stemp2 = new \stdClass();
+                        $stemp2->from = $local_id;
+                        $stemp2->to = $to;
+                        //$stemp2->arrows = 'to';
+                        $stemp2->port = $item->port_id;
+                        //$stemp2->portName = empty($item->port_name)? '':$item->port_name;
+                        $stemp2->portName = $edege_title;
+                        array_push($ret->edges,$stemp2);
+                    }else{
+                        $id++;
+                        $stemp = new \stdClass();
+                        $stemp->id = $id;
+                        $stemp->ip = $item->ipv4_address;
+                        $stemp->group = $local_id;
+                        //$stemp->title = $item->ipv4_address;
+                        array_push($ret->nodes,$stemp);
+                        $to  = $id;
 
-                    $stemp2 = new \stdClass();
-                    $stemp2->from = $local_id;
-                    $stemp2->to = $id;
-                    //$stemp2->arrows = 'to';
-                    $stemp2->port = $item->port_id;
-                    //$stemp2->portName = empty($item->port_name)? '':$item->port_name;
-                    $stemp2->portName = $edege_title;
-                    array_push($ret->edges,$stemp2);
+                        $stemp2 = new \stdClass();
+                        $stemp2->from = $local_id;
+                        $stemp2->to = $to;
+                        //$stemp2->arrows = 'to';
+                        $stemp2->port = $item->port_id;
+                        //$stemp2->portName = empty($item->port_name)? '':$item->port_name;
+                        $stemp2->portName = $edege_title;
+                        array_push($ret->edges,$stemp2);
 
-                    array_push($mac_ips,$item->ipv4_address);
-                    $mac_host[$item->ipv4_address] = $id;
+                        array_push($mac_ips,$item->ipv4_address);
+                        $mac_host[$item->ipv4_address] = $id;
+                    }
                 }
             }
-        }
+            //Cache::put($cache_key,$ret,30);
+        //}
+
         return $ret;
     }
 }

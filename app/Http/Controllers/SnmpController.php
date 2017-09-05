@@ -48,16 +48,16 @@ class SnmpController extends Controller
         }
         //Log::info("devicePoller_data = " . json_encode($data));
         $device_id = $request->device_id;
-        $data = [
-            'version' => isset($data->version) ? $data->version : '',
-            'features' => isset($data->features) ? $data->features : '',
-            'hardware' => isset($data->hardware) ? $data->hardware : '',
-            'serial' => isset($data->serial) ? $data->serial : '',
-            'sysObjectID' => isset($data->sysObjectID) ? $data->sysObjectID : '',
-            'deviceType' => isset($data->deviceType) ? $data->deviceType : ''
-        ];
+        $save_data = [];
+        if(isset($data->version)) $save_data['version'] = $data->version;
+        if(isset($data->features)) $save_data['features'] = $data->features;
+        if(isset($data->hardware)) $save_data['hardware'] = $data->hardware;
+        if(isset($data->serial)) $save_data['serial'] = $data->serial;
+        if(isset($data->sysObjectID)) $save_data['sysObjectID'] = $data->sysObjectID;
+        if(isset($data->deviceType)) $save_data['deviceType'] = $data->deviceType;
+        if(isset($data->deviceStatus)) $save_data['deviceStatus'] = $data->deviceStatus;
 
-        DB::table('host')->where('userid',$uid)->where('device_id',$device_id)->update($data);
+        DB::table('host')->where('userid',$uid)->where('device_id',$device_id)->update($save_data);
         $res = DB::table('host')->where('device_id',$device_id)->where('userid',$uid)->first();
         if($res){
             unset($res->device_id);
@@ -414,7 +414,7 @@ class SnmpController extends Controller
             Log::info("porttop_uid = 未知用户");
             return $this->returnJson(404,'未知用户');
         }
-        $lists = MyApi::portTopData($uid);
+        $lists = MyApi::portTopDataV2($uid);
         return $this->returnJson(200,'success',$lists);
         //return response()->json($lists);
     }
@@ -552,12 +552,12 @@ class SnmpController extends Controller
                 $hostid = $res->id;
                 $stmp = new \stdClass();
                 $res2 = new \stdClass();
-                $res2->host_name = $res->name;
-                $res2->virtual_machines = $res->vm_num . '台';
-                $res2->hardware_model = $res->hardware_model;
-                $res2->hardware_vendor = $res->hardware_vendor;
-                $res2->product_name = $res->product_name;
-                $res2->product_version = $res->product_version;
+                $res2->hostName = $res->name;
+                $res2->virtualMachines = $res->vm_num . '台';
+                $res2->hardwareModel = $res->hardware_model;
+                $res2->hardwareVendor = $res->hardware_vendor;
+                $res2->productName = $res->product_name;
+                $res2->productVersion = $res->product_version;
                 $res2->pollerName = $res->pollerName;
                 $res2->pollerIp = $res->pollerIp;
                 $stmp->$hostid = $res2;
@@ -576,7 +576,7 @@ class SnmpController extends Controller
                 $hostid = $res->id;
                 $stmp = new \stdClass();
                 $res2 = new \stdClass();
-                $res2->host_name = $res->name;
+                $res2->hostName = $res->name;
                 $res2->sysName = $res->sysName;
                 $res2->toolsInstalled = $res->toolsInstalled == 0 ? '未安装' : '已安装';
                 $res2->cpuUsage = $res->cpuUsage . 'MHz';
@@ -596,7 +596,7 @@ class SnmpController extends Controller
                 $hostid = $res->id;
                 $stmp = new \stdClass();
                 $res2 = new \stdClass();
-                $res2->host_name = $res->name;
+                $res2->hostName = $res->name;
                 $res2->state = ($res->state == Vcenter::VIR_DOMAIN_RUNNING) ? 'running' : 'stop';
                 $res2->MaxMem = ($res->MaxMem/1024) . 'MB';
                 $res2->MemUsed = ($res->Memory/1024) . 'MB';

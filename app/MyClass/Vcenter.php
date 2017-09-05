@@ -8,6 +8,7 @@
 
 namespace App\MyClass;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 use Log;
 use DB;
@@ -276,214 +277,228 @@ class Vcenter
 
     public static function vcentertop($uid,$request)
     {
-        $ret = new \stdClass();
-        $hosts = Vcenter::VDB()->table('hosts')
-            ->leftJoin('clusters','hosts.cid','=','clusters.id')
-            ->leftJoin('datacenters','clusters.did','=','datacenters.id')
-            ->leftJoin('vcenters','datacenters.vid','=','vcenters.id')
-            ->where('vcenters.uid',$uid)->where('vcenters.id',$request->vcid)
-            ->select('hosts.id as hid','hosts.name as h_name','hosts.vm_num','hosts.hardware_model',
-                'hosts.hardware_vendor', 'hosts.product_name','hosts.product_version','hosts.overallStatus'
-            )->get();
-        $hids = [];
-        $vmids = [];
-        //$ret->nodes = [];
-        //$ret->edges = [];
-        $ret->host_vm = new \stdClass();
-        $ret->host_vm->nodes = [];
-        $ret->host_vm->edges = [];
-        $ret->host_store = new \stdClass();
-        $ret->host_store->nodes = [];
-        $ret->host_store->edges = [];
-        $ret->vm_store = new \stdClass();
-        $ret->vm_store->nodes = [];
-        $ret->vm_store->edges = [];
+        $cache_key = 'vcenter_top_data'.$uid;
+        if(Cache::has($cache_key)) {
+            $ret = Cache::get($cache_key);
+        }else{
+            $ret = new \stdClass();
+            $hosts = Vcenter::VDB()->table('hosts')
+                ->leftJoin('clusters','hosts.cid','=','clusters.id')
+                ->leftJoin('datacenters','clusters.did','=','datacenters.id')
+                ->leftJoin('vcenters','datacenters.vid','=','vcenters.id')
+                ->where('vcenters.uid',$uid)->where('vcenters.id',$request->vcid)
+                ->select('hosts.id as hid','hosts.name as h_name','hosts.vm_num','hosts.hardware_model',
+                    'hosts.hardware_vendor', 'hosts.product_name','hosts.product_version','hosts.overallStatus'
+                )->get();
+            $hids = [];
+            $vmids = [];
+            //$ret->nodes = [];
+            //$ret->edges = [];
+            $ret->host_vm = new \stdClass();
+            $ret->host_vm->nodes = [];
+            $ret->host_vm->edges = [];
+            $ret->host_store = new \stdClass();
+            $ret->host_store->nodes = [];
+            $ret->host_store->edges = [];
+            $ret->vm_store = new \stdClass();
+            $ret->vm_store->nodes = [];
+            $ret->vm_store->edges = [];
 
-        $host_nodeids = [];
-        $vm_nodeids = [];
-        $storages_nodeids = [];
-        $host_nodes = [];
-        $vm_nodes = [];
-        $store_nodes = [];
+            $host_nodeids = [];
+            $vm_nodeids = [];
+            $storages_nodeids = [];
+            $host_nodes = [];
+            $vm_nodes = [];
+            $store_nodes = [];
 
-        $hostvm = [];
-        $hoststore_s = [];
-        $hoststore_h = [];
-        $vmstore_v = [];
-        $vmstore_s = [];
-        $id=0;
-        foreach($hosts as $host){
-            $id++;
-            $arr_model = explode(':',$host->hardware_model);
-            $title = new \stdClass();
-            $key = $arr_model[0];
-            $value = isset($arr_model[1]) ? $arr_model[1] : '';
-            $title->$key = $value;
-            $title->virtual_machines = $host->vm_num;
-            $title->hardware_model = $host->hardware_model;
-            $title->hardware_vendor = $host->hardware_vendor;
-            $title->product_name = $host->product_name;
-            $title->product_version = $host->product_version;
+            $hostvm = [];
+            $hoststore_s = [];
+            $hoststore_h = [];
+            $vmstore_v = [];
+            $vmstore_s = [];
+            $id=0;
+            foreach($hosts as $host){
+                $id++;
+                $arr_model = explode(':',$host->hardware_model);
+                $title = new \stdClass();
+                $key = $arr_model[0];
+                $value = isset($arr_model[1]) ? $arr_model[1] : '';
+                $title->$key = $value;
+                $title->virtual_machines = $host->vm_num;
+                $title->hardware_model = $host->hardware_model;
+                $title->hardware_vendor = $host->hardware_vendor;
+                $title->product_name = $host->product_name;
+                $title->product_version = $host->product_version;
 
-            $stemp = new \stdClass();
-            $stemp->id = $id;
-            $stemp->hostName = $host->h_name;
-            $stemp->info = $title;
-            $stemp->group = $id;
-            $stemp->overallStatus = $host->overallStatus;
-            $stemp->type = 'host';
-            //array_push($ret->nodes,$stemp);
-            array_push($hids,$host->hid);
-            $host_nodeids[$host->hid] = $id;
-            $host_nodes[$host->hid] = $stemp;
-        }
-        $vms = Vcenter::VDB()->table('virtual_machines')
-            ->whereIn('hid',$hids)->get();
-        foreach ($vms as $vm){
-            $id++;
-            $title = new \stdClass();
-            $title->sysName = $vm->sysName;
-            $title->toolsInstalled = $vm->toolsInstalled == 0 ? '未安装' : '已安装';
-            $title->cpuUsage = $vm->cpuUsage . 'MHz';
-            $title->memUsage = $vm->memUsage . 'MB';
-            $title->diskUsage = $vm->diskUsage / (1024 * 1024 * 1024) . 'GB';
-
-            $host_nodeid = $host_nodeids[$vm->hid];
-
-            $stemp = new \stdClass();
-            $stemp->id = $id;
-            $stemp->hostName = $vm->name;
-            $stemp->info = $title;
-            $stemp->group = $host_nodeid;
-            $stemp->overallStatus = $vm->overallStatus;
-            $stemp->type = 'vm';
-            //array_push($ret->nodes,$stemp);
-            $vm_nodes[$vm->id] = $stemp;
-
-            $stemp2 = new \stdClass();
-            $stemp2->from = $host_nodeid;
-            $stemp2->to = $id;
-            //$stemp2->type = 'host_vm';
-            //array_push($ret->edges,$stemp2);
-            array_push($vmids,$vm->id);
-            $vm_nodeids[$vm->id] = $id;
-
-            $host_node = $host_nodes[$vm->hid];
-            if(empty($hostvm[$vm->hid])){
-                array_push($ret->host_vm->nodes,$host_node);
-                $hostvm[$vm->hid] = $vm->hid;
+                $stemp = new \stdClass();
+                $stemp->id = $id;
+                $stemp->hostName = $host->h_name;
+                $stemp->info = $title;
+                $stemp->group = $id;
+                $stemp->status = $host->overallStatus;
+                $stemp->type = 'host';
+                //array_push($ret->nodes,$stemp);
+                array_push($hids,$host->hid);
+                $host_nodeids[$host->hid] = $id;
+                $host_nodes[$host->hid] = $stemp;
             }
-            array_push($ret->host_vm->nodes,$stemp);
-            array_push($ret->host_vm->edges,$stemp2);
-        }
-        $storages = Vcenter::VDB()->table('datastores')
-            ->leftJoin('datacenters','datastores.did','=','datacenters.id')
-            ->leftJoin('vcenters','datacenters.vid','=','vcenters.id')
-            ->where('vcenters.uid',$uid)->where('vcenters.id',$request->vcid)
-            ->select('datastores.*')->get();
-        foreach ($storages as $storage){
-            $id++;
-            $stemp = new \stdClass();
-            $stemp->id = $id;
-            $stemp->hostName = $storage->name;
-            $stemp->type = 'store';
-            //$stemp->info = $title;
-            //array_push($ret->nodes,$stemp);
-            $storages_nodeids[$storage->id] = $id;
-            $store_nodes[$storage->id] = $stemp;
-        }
+            $vms = Vcenter::VDB()->table('virtual_machines')
+                ->whereIn('hid',$hids)->get();
+            foreach ($vms as $vm){
+                $id++;
+                $title = new \stdClass();
+                $title->sysName = $vm->sysName;
+                $title->toolsInstalled = $vm->toolsInstalled == 0 ? '未安装' : '已安装';
+                $title->cpuUsage = $vm->cpuUsage . 'MHz';
+                $title->memUsage = $vm->memUsage . 'MB';
+                $title->diskUsage = $vm->diskUsage / (1024 * 1024 * 1024) . 'GB';
 
-        $hsdatas = Vcenter::VDB()->table('host_stores')
-            ->leftJoin('datastores','host_stores.storeid','=','datastores.id')
-            ->whereIn('host_stores.hostid',$hids)->select('host_stores.storeid','host_stores.hostid')
-            ->get();
-        foreach ($hsdatas as $hsdata){
-            $hid = $hsdata->hostid;
-            $storeid = $hsdata->storeid;
-            $host_nodeid = $host_nodeids[$hid];
-            $store_nodeid = $storages_nodeids[$storeid];
-            $stemp2 = new \stdClass();
-            $stemp2->from = $host_nodeid;
-            $stemp2->to = $store_nodeid;
-            //$stemp2->type = 'host_store';
-            //array_push($ret->edges,$stemp2);
+                $host_nodeid = $host_nodeids[$vm->hid];
 
-            if(empty($hoststore_h[$hid])){
-                $host_node = $host_nodes[$hid];
-                array_push($ret->host_store->nodes,$host_node);
-                $hoststore_h[$hid] = $hid;
+                $stemp = new \stdClass();
+                $stemp->id = $id;
+                $stemp->hostName = $vm->name;
+                $stemp->info = $title;
+                $stemp->group = $host_nodeid;
+                $stemp->status = $vm->overallStatus;
+                $stemp->type = 'vm';
+                //array_push($ret->nodes,$stemp);
+                $vm_nodes[$vm->id] = $stemp;
+
+                $stemp2 = new \stdClass();
+                $stemp2->from = $host_nodeid;
+                $stemp2->to = $id;
+                //$stemp2->type = 'host_vm';
+                //array_push($ret->edges,$stemp2);
+                array_push($vmids,$vm->id);
+                $vm_nodeids[$vm->id] = $id;
+
+                $host_node = $host_nodes[$vm->hid];
+                if(empty($hostvm[$vm->hid])){
+                    array_push($ret->host_vm->nodes,$host_node);
+                    $hostvm[$vm->hid] = $vm->hid;
+                }
+                array_push($ret->host_vm->nodes,$stemp);
+                array_push($ret->host_vm->edges,$stemp2);
             }
-            if(empty($hoststore_s[$storeid])){
-                $store_node = $store_nodes[$storeid];
-                array_push($ret->host_store->nodes,$store_node);
-                $hoststore_s[$storeid] = $storeid;
+            $storages = Vcenter::VDB()->table('datastores')
+                ->leftJoin('datacenters','datastores.did','=','datacenters.id')
+                ->leftJoin('vcenters','datacenters.vid','=','vcenters.id')
+                ->where('vcenters.uid',$uid)->where('vcenters.id',$request->vcid)
+                ->select('datastores.*')->get();
+            foreach ($storages as $storage){
+                $id++;
+                $stemp = new \stdClass();
+                $stemp->id = $id;
+                $stemp->hostName = $storage->name;
+                $stemp->type = 'store';
+                //$stemp->info = $title;
+                //array_push($ret->nodes,$stemp);
+                $storages_nodeids[$storage->id] = $id;
+                $store_nodes[$storage->id] = $stemp;
             }
 
-            array_push($ret->host_store->edges,$stemp2);
+            $hsdatas = Vcenter::VDB()->table('host_stores')
+                ->leftJoin('datastores','host_stores.storeid','=','datastores.id')
+                ->whereIn('host_stores.hostid',$hids)->select('host_stores.storeid','host_stores.hostid')
+                ->get();
+            foreach ($hsdatas as $hsdata){
+                $hid = $hsdata->hostid;
+                $storeid = $hsdata->storeid;
+                $host_nodeid = $host_nodeids[$hid];
+                $store_nodeid = $storages_nodeids[$storeid];
+                $stemp2 = new \stdClass();
+                $stemp2->from = $host_nodeid;
+                $stemp2->to = $store_nodeid;
+                //$stemp2->type = 'host_store';
+                //array_push($ret->edges,$stemp2);
+
+                if(empty($hoststore_h[$hid])){
+                    $host_node = $host_nodes[$hid];
+                    array_push($ret->host_store->nodes,$host_node);
+                    $hoststore_h[$hid] = $hid;
+                }
+                if(empty($hoststore_s[$storeid])){
+                    $store_node = $store_nodes[$storeid];
+                    array_push($ret->host_store->nodes,$store_node);
+                    $hoststore_s[$storeid] = $storeid;
+                }
+
+                array_push($ret->host_store->edges,$stemp2);
+            }
+
+            $vmstores = Vcenter::VDB()->table('vm_stores')
+                ->leftJoin('datastores','vm_stores.storeid','=','datastores.id')
+                ->whereIn('vm_stores.vmid',$vmids)->select('vm_stores.storeid','vm_stores.vmid')
+                ->get();
+            foreach ($vmstores as $vmstore){
+                $storeid = $vmstore->storeid;
+                $vm_nodeid = $vm_nodeids[$vmstore->vmid];
+                $store_nodeid = $storages_nodeids[$storeid];
+                $stemp2 = new \stdClass();
+                $stemp2->from = $vm_nodeid;
+                $stemp2->to = $store_nodeid;
+                //$stemp2->type = 'vm_store';
+                //array_push($ret->edges,$stemp2);
+
+                if(empty($vmstore_v[$vmstore->vmid])){
+                    $vm_node = $vm_nodes[$vmstore->vmid];
+                    array_push($ret->vm_store->nodes,$vm_node);
+                    $vmstore_v[$vmstore->vmid] = $vmstore->vmid;
+                }
+                if(empty($vmstore_s[$storeid])){
+                    $store_node = $store_nodes[$storeid];
+                    array_push($ret->vm_store->nodes,$store_node);
+                    $vmstore_s[$storeid] = $storeid;
+                }
+                array_push($ret->vm_store->edges,$stemp2);
+            }
+
+            Cache::put($cache_key,$ret,30);
         }
 
-        $vmstores = Vcenter::VDB()->table('vm_stores')
-            ->leftJoin('datastores','vm_stores.storeid','=','datastores.id')
-            ->whereIn('vm_stores.vmid',$vmids)->select('vm_stores.storeid','vm_stores.vmid')
-            ->get();
-        foreach ($vmstores as $vmstore){
-            $storeid = $vmstore->storeid;
-            $vm_nodeid = $vm_nodeids[$vmstore->vmid];
-            $store_nodeid = $storages_nodeids[$storeid];
-            $stemp2 = new \stdClass();
-            $stemp2->from = $vm_nodeid;
-            $stemp2->to = $store_nodeid;
-            //$stemp2->type = 'vm_store';
-            //array_push($ret->edges,$stemp2);
-
-            if(empty($vmstore_v[$vmstore->vmid])){
-                $vm_node = $vm_nodes[$vmstore->vmid];
-                array_push($ret->vm_store->nodes,$vm_node);
-                $vmstore_v[$vmstore->vmid] = $vmstore->vmid;
-            }
-            if(empty($vmstore_s[$storeid])){
-                $store_node = $store_nodes[$storeid];
-                array_push($ret->vm_store->nodes,$store_node);
-                $vmstore_s[$storeid] = $storeid;
-            }
-            array_push($ret->vm_store->edges,$stemp2);
-        }
 
         return $ret;
     }
 
     public static function kvmtop($uid,$request)
     {
-        $ret = new \stdClass();
-        $ret->nodes = [];
-        $ret->edges = [];
-        $khost = Vcenter::VDB()->table('khosts')->where('userid',$uid)->where('id',$request->vcid)->first();
-        if(!$khost) return $ret;
-        $id = 1;
-        $stemp = new \stdClass();
-        $stemp->id = $id;
-        $stemp->hostName = $khost->host;
-        array_push($ret->nodes,$stemp);
-        $local_id = $id;
-        $kvms = Vcenter::VDB()->table('kvms')->where('khostid',$request->vcid)->get();
-        foreach ($kvms as $kvm){
-            $id++;
-            $node = new \stdClass();
-            $node->id = $id;
-            $node->hostName = $kvm->name;
-            $node->info = new \stdClass();
-            //$node->info->state = $kvm->state == Vcenter::VIR_DOMAIN_RUNNING ? 'running' : 'stop';
-            $node->info->MaxMen = ($kvm->MaxMem/1024) . 'MB';
-            $node->info->MenUsed = ($kvm->Memory/1024) . 'MB';
-            $node->info->CpuNum = $kvm->NrVirtCpu;
-            $node->info->CpuTime = ($kvm->CpuTime/1000000000) . 'seconds';
-            $node->status =  $kvm->state;
+        $cache_key = 'kvm_top_data'.$uid;
+        if(Cache::has($cache_key)){
+            $ret = Cache::get($cache_key);
+        }else{
+            $ret = new \stdClass();
+            $ret->nodes = [];
+            $ret->edges = [];
+            $khost = Vcenter::VDB()->table('khosts')->where('userid',$uid)->where('id',$request->vcid)->first();
+            if(!$khost) return $ret;
+            $id = 1;
+            $stemp = new \stdClass();
+            $stemp->id = $id;
+            $stemp->hostName = $khost->host;
+            array_push($ret->nodes,$stemp);
+            $local_id = $id;
+            $kvms = Vcenter::VDB()->table('kvms')->where('khostid',$request->vcid)->get();
+            foreach ($kvms as $kvm){
+                $id++;
+                $node = new \stdClass();
+                $node->id = $id;
+                $node->hostName = $kvm->name;
+                $node->info = new \stdClass();
+                //$node->info->state = $kvm->state == Vcenter::VIR_DOMAIN_RUNNING ? 'running' : 'stop';
+                $node->info->MaxMen = ($kvm->MaxMem/1024) . 'MB';
+                $node->info->MenUsed = ($kvm->Memory/1024) . 'MB';
+                $node->info->CpuNum = $kvm->NrVirtCpu;
+                $node->info->CpuTime = ($kvm->CpuTime/1000000000) . 'seconds';
+                $node->status =  $kvm->state;
 
-            $edge = new \stdClass();
-            $edge->from = $local_id;
-            $edge->to = $id;
-            array_push($ret->nodes,$node);
-            array_push($ret->edges,$edge);
+                $edge = new \stdClass();
+                $edge->from = $local_id;
+                $edge->to = $id;
+                array_push($ret->nodes,$node);
+                array_push($ret->edges,$edge);
+            }
+            Cache::put($cache_key,$ret,30);
         }
 
         return $ret;

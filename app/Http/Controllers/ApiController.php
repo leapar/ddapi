@@ -106,17 +106,22 @@ class ApiController  extends Controller
         //$uid = 20;
         $res_u = MyApi::checkUidError($uid);
         if($res_u->code != 0) return response()->json($res_u);
-
-        if(!is_numeric($dasbid)){
+        if($request->has('slug') && $request->slug == "1"){
             $slug = $dasbid;
-            /*if($slug == "system"){
-                $ret = Dashboard::findBySystem($slug);//预埋的dashboard
-            }else{*/
-                $ret = Dashboard::findBySlug($slug,$uid,'show');
-            //}
+            $ret = MyRedisCache::getMetricByService($slug,$uid,'show');
         }else{
-            $ret = Dashboard::findByid($dasbid,$uid);
+            if(!is_numeric($dasbid)){
+                $slug = $dasbid;
+                /*if($slug == "system"){
+                    $ret = Dashboard::findBySystem($slug);//预埋的dashboard
+                }else{*/
+                $ret = Dashboard::findBySlug($slug,$uid,'show');
+                //}
+            }else{
+                $ret = Dashboard::findByid($dasbid,$uid);
+            }
         }
+
 
         return response()->json($ret);
     }
@@ -164,8 +169,12 @@ class ApiController  extends Controller
         //$uid = 20;
         $res_u = MyApi::checkUidError($uid);
         if($res_u->code != 0) return response()->json($res_u);
-
-        $ret = $this->getChartsJson($uid,$dasbid);
+        if($request->has('slug') && $request->slug == "1"){
+            $slug = $dasbid;
+            $ret = MyRedisCache::getMetricByService($slug,$uid,'chart');
+        }else{
+            $ret = $this->getChartsJson($uid,$dasbid);
+        }
         return response()->json($ret);
     }
 
