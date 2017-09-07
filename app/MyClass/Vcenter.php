@@ -330,12 +330,20 @@ class Vcenter
                 $title->product_name = $host->product_name;
                 $title->product_version = $host->product_version;
 
+                $hostn = $host->h_name;
+                $hsname = "HOST_DATA_".$uid."_".$hostn;
+                $redis_data = json_decode(Redis::command('GET', [$hsname]),true);
+                list($t1, $t2) = explode(' ', microtime());
+                $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+                $status = 0;
+                if($msec - $redis_data['updatetime'] < MyApi::REDIS_UPD_TIME) $status = $host->overallStatus;
+
                 $stemp = new \stdClass();
                 $stemp->id = $id;
                 $stemp->hostName = $host->h_name;
                 $stemp->info = $title;
                 $stemp->group = $id;
-                $stemp->status = $host->overallStatus;
+                $stemp->status = $status;
                 $stemp->type = 'host';
                 //array_push($ret->nodes,$stemp);
                 array_push($hids,$host->hid);
@@ -354,13 +362,20 @@ class Vcenter
                 $title->diskUsage = $vm->diskUsage / (1024 * 1024 * 1024) . 'GB';
 
                 $host_nodeid = $host_nodeids[$vm->hid];
+                $host = $vm->name;
+                $hsname = "HOST_DATA_".$uid."_".$host;
+                $redis_data = json_decode(Redis::command('GET', [$hsname]),true);
+                list($t1, $t2) = explode(' ', microtime());
+                $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+                $status = 0;
+                if($msec - $redis_data['updatetime'] < MyApi::REDIS_UPD_TIME) $status = $vm->overallStatus;
 
                 $stemp = new \stdClass();
                 $stemp->id = $id;
                 $stemp->hostName = $vm->name;
                 $stemp->info = $title;
                 $stemp->group = $host_nodeid;
-                $stemp->status = $vm->overallStatus;
+                $stemp->status = $status;
                 $stemp->type = 'vm';
                 //array_push($ret->nodes,$stemp);
                 $vm_nodes[$vm->id] = $stemp;
@@ -454,7 +469,7 @@ class Vcenter
                 array_push($ret->vm_store->edges,$stemp2);
             }
 
-            Cache::put($cache_key,$ret,30);
+            Cache::put($cache_key,$ret,MyApi::REDIS_TOP_TIME);
         }
 
 
@@ -490,7 +505,15 @@ class Vcenter
                 $node->info->MenUsed = ($kvm->Memory/1024) . 'MB';
                 $node->info->CpuNum = $kvm->NrVirtCpu;
                 $node->info->CpuTime = ($kvm->CpuTime/1000000000) . 'seconds';
-                $node->status =  $kvm->state;
+
+                $host = $kvm->name;
+                $hsname = "HOST_DATA_".$uid."_".$host;
+                $redis_data = json_decode(Redis::command('GET', [$hsname]),true);
+                list($t1, $t2) = explode(' ', microtime());
+                $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+                $status = 0;
+                if($msec - $redis_data['updatetime'] < MyApi::REDIS_UPD_TIME) $status = $kvm->state;
+                $node->status =  $status;
 
                 $edge = new \stdClass();
                 $edge->from = $local_id;
@@ -498,7 +521,7 @@ class Vcenter
                 array_push($ret->nodes,$node);
                 array_push($ret->edges,$edge);
             }
-            Cache::put($cache_key,$ret,30);
+            Cache::put($cache_key,$ret,MyApi::REDIS_TOP_TIME);
         }
 
         return $ret;

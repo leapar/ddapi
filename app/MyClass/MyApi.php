@@ -17,6 +17,9 @@ use Illuminate\Support\Facades\Redis;
 
 class MyApi
 {
+    const REDIS_UPD_TIME = 10 * 60 * 1000;//毫秒，10分钟
+    const REDIS_TOP_TIME = 10;//10分钟
+
     public static function getMetricJson($uid)
     {
         $url = config('myconfig.tsdb_search_url') . '/api/search/lookup';
@@ -866,10 +869,18 @@ class MyApi
                 $stemp_2->serial = $item->serial;
                 $stemp_2->version = $item->version;
 
+                $host = $item->host_name;
+                $hsname = "HOST_DATA_".$uid."_".$host;
+                $redis_data = json_decode(Redis::command('GET', [$hsname]),true);
+                list($t1, $t2) = explode(' ', microtime());
+                $msec = (float)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+                $status = 0;
+                if($msec - $redis_data['updatetime'] < MyApi::REDIS_UPD_TIME) $status = 1;
+
                 $stemp->info = $stemp_2;
                 $stemp->shape = 'circle';
                 $stemp->group = $id;
-                $stemp->status = $item->deviceStatus;
+                $stemp->status = $status;
                 array_push($ret->nodes,$stemp);
 
                 $device_ids[$item->device_id] = $id;
@@ -949,7 +960,7 @@ class MyApi
                 $stemp2->portName = $edege_title;
                 array_push($ret->edges, $stemp2);
             }
-            Cache::put($cache_key,$ret,30);
+            Cache::put($cache_key,$ret,MyApi::REDIS_TOP_TIME);
         }
 
         return $ret;
