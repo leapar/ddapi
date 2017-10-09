@@ -604,7 +604,7 @@ class MyApi
             }
         }
         array_push($orders,[$chart_id,$x,$y,$w,$h]);
-        DB::table('dashboard')->where('id',$dasid)->update(['order' => json_encode($orders)]);
+        DB::table('dashboard')->where('id',$dasid)->update(['update_time' => date("Y-m-d H:i:s"),'order' => json_encode($orders)]);
         /*   update order   */
 
         $result = DB::table('charts')->where('id',$chart_id)->first();
@@ -646,7 +646,7 @@ class MyApi
             $order[0] = $chart_id;
             array_push($new_orders,$order);
         }
-        DB::table('dashboard')->where('id',$id)->update(['order' => json_encode($new_orders)]);
+        DB::table('dashboard')->where('id',$id)->update(['update_time' => date("Y-m-d H:i:s"),'order' => json_encode($new_orders)]);
         return $id;
     }
 
@@ -686,7 +686,7 @@ class MyApi
                 $x += 3;
             }
         }
-        DB::table('dashboard')->where('id',$id)->update(['order' => json_encode($orders)]);
+        DB::table('dashboard')->where('id',$id)->update(['update_time' => date("Y-m-d H:i:s"),'order' => json_encode($orders)]);
 
         return $id;
     }
@@ -747,7 +747,7 @@ class MyApi
 
         }
 
-        DB::table('dashboard')->where('id',$dasbid)->update(['order' => json_encode($orders)]);
+        DB::table('dashboard')->where('id',$dasbid)->update(['update_time' => date("Y-m-d H:i:s"),'order' => json_encode($orders)]);
 
         return $orders;
     }

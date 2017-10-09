@@ -51,7 +51,7 @@ class VcenterController extends Controller
         }
         //Log::info("#################### vcenter_finder ==".json_encode($data));
         $poller_data = $data->list;
-        $poller_data = $poller_data[0];
+        if(is_array($poller_data)) $poller_data = $poller_data[0];
         $pollerName = $poller_data->pollerName;
         $pollerIp = $poller_data->pollerIp;
         //物理主机 vcenter
@@ -95,16 +95,6 @@ class VcenterController extends Controller
 
         $vcenterv1 = (new VcenterV1($data,$host,$uid))->onQueue("vcenterv1");
         $this->dispatch($vcenterv1);
-        return;
-        $arrPost = array();
-        $metric = new Metric($data,$host,$uid);
-        $arrPost = $metric->vcenterMetric($arrPost);
-
-        //return response()->json($arrPost);
-        if(count($arrPost) > 0) {
-            $metric->post2tsdb($arrPost);
-            $arrPost = array();
-        }
     }
 
     public function vclist(Request $request)
