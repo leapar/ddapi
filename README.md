@@ -17,3 +17,5 @@ php -r "unlink('composer-setup.php');"
 ```
 
 yum install php70w-mbstring
+
+yum install php70w-dom
