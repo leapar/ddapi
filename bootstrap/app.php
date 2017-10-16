@@ -109,7 +109,7 @@ $app->configureMonologUsing(function(Monolog\Logger $monolog) use ($app) {
     );
 });
 
-$app->group(['namespace' => 'App\Http\Controllers'], function ($app) {
+$app->group([/*'namespace' => 'App\Http\Controllers'*/], function ($app) {
     require __DIR__.'/../routes/web.php';
 });
 

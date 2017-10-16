@@ -25,15 +25,17 @@ $app->get('/info', function () use ($app) {
     echo $str;
 });
 
+$app->group(['namespace'=>'App\Http\Controllers'], function () use ($app) {
+	$app->post('/datadog', 'MetricController@datadog');
+	$app->post('/intake', 'MetricController@intake');
+	$app->post('/infrastructure/metrics', 'MetricController@intake');
+	$app->post('/intake/metadata', 'MetricController@metadata');
+	$app->post('/intake/metrics', 'MetricController@metrics');
+	$app->post('/api/v1/series', 'MetricController@series');
+	$app->post('/api/v1/check_run', 'MetricController@check_run');
+	$app->post('/status', 'MetricController@status');
 
-$app->post('/datadog', 'MetricController@datadog');
-$app->post('/intake', 'MetricController@intake');
-$app->post('/infrastructure/metrics', 'MetricController@intake');
-$app->post('/intake/metadata', 'MetricController@metadata');
-$app->post('/intake/metrics', 'MetricController@metrics');
-$app->post('/api/v1/series', 'MetricController@series');
-$app->post('/api/v1/check_run', 'MetricController@check_run');
-$app->post('/status', 'MetricController@status');
+});
 
 $app->get('test','ApiController@test');
 
